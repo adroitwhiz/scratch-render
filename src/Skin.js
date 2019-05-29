@@ -5,19 +5,6 @@ const twgl = require('twgl.js');
 const RenderConstants = require('./RenderConstants');
 const Silhouette = require('./Silhouette');
 
-/**
- * Truncate a number into what could be stored in a 32 bit floating point value.
- * @param {number} num Number to truncate.
- * @return {number} Truncated value.
- */
-const toFloat32 = (function () {
-    const memory = new Float32Array(1);
-    return function (num) {
-        memory[0] = num;
-        return memory[0];
-    };
-}());
-
 class Skin extends EventEmitter {
     /**
      * Create a Skin, which stores and/or generates textures for use in rendering.
@@ -116,8 +103,8 @@ class Skin extends EventEmitter {
         // Compare a 32 bit x and y value against the stored 32 bit center
         // values.
         const changed = (
-            toFloat32(x) !== this._rotationCenter[0] ||
-            toFloat32(y) !== this._rotationCenter[1]);
+            Math.fround(x) !== this._rotationCenter[0] ||
+            Math.fround(y) !== this._rotationCenter[1]);
         if (!emptySkin && changed) {
             this._rotationCenter[0] = x;
             this._rotationCenter[1] = y;
