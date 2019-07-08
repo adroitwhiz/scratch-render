@@ -1243,7 +1243,6 @@ class RenderWebGL extends EventEmitter {
         /** @todo remove this once URL-based skin setting is removed. */
         if (!drawable.skin || !drawable.skin.getTexture([100, 100])) return null;
 
-        drawable.updateMatrix();
         drawable.skin.updateSilhouette();
         const bounds = drawable.getFastBounds();
 
