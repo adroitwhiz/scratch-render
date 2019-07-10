@@ -5,7 +5,6 @@ const canvas = document.getElementById('scratch-stage');
 let fudge = 90;
 const renderer = new ScratchRender(canvas);
 renderer.setLayerGroupOrdering(['group1']);
-window.renderer = renderer;
 
 const drawableID = renderer.createDrawable('group1');
 renderer.updateDrawableProperties(drawableID, {
@@ -46,7 +45,7 @@ xhr.addEventListener('load', function () {
         });
     }
 });
-xhr.open('GET', 'https://cdn.assets.scratch.mit.edu/internalapi/asset/7e4d03ea982f865367dfc821108bf59f.svg/get/');
+xhr.open('GET', 'https://cdn.assets.scratch.mit.edu/internalapi/asset/b7853f557e4426412e64bb3da6531a99.svg/get/');
 xhr.send();
 
 if (wantedSkin === WantedSkinType.pen) {
