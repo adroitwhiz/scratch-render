@@ -186,8 +186,8 @@ class Silhouette {
      */
     isTouchingLinear (vec) {
         if (!this._colorData) return;
-        const x = Math.round(vec[0] * this._width);
-        const y = Math.round(vec[1] * this._height);
+        const x = Math.floor(vec[0] * this._width);
+        const y = Math.floor(vec[1] * this._height);
         return getPoint(this, x, y) > 0 ||
             getPoint(this, x + 1, y) > 0 ||
             getPoint(this, x, y + 1) > 0 ||
