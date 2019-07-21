@@ -3,7 +3,8 @@ const twgl = require('twgl.js');
 const Skin = require('./Skin');
 const SvgRenderer = require('scratch-svg-renderer').SVGRenderer;
 
-const MAX_TEXTURE_DIMENSION = 2048;
+// The minimum scale to render an SVG at. For subpixel positioning reasons.
+const MINIMUM_SVG_SCALE = 1 / 8;
 
 class SVGSkin extends Skin {
     /**
@@ -28,8 +29,11 @@ class SVGSkin extends Skin {
         /** @type {number} */
         this._textureScale = 1;
 
-        /** @type {Number} */
+        /** @type {number} */
         this._maxTextureScale = 0;
+
+        /** @type {number} */
+        this.MAX_TEXTURE_DIMENSION = renderer.gl.getParameter(renderer.gl.MAX_TEXTURE_SIZE);
 
         /**
          * The natural size, in Scratch units, of this skin.
@@ -70,8 +74,22 @@ class SVGSkin extends Skin {
         if (x !== this._rawRotationCenter[0] || y !== this._rawRotationCenter[1]) {
             this._rawRotationCenter[0] = x;
             this._rawRotationCenter[1] = y;
-            super.setRotationCenter(x - this._viewOffset[0], y - this._viewOffset[1]);
+            super.setRotationCenter(this._viewOffset[0], this._viewOffset[1]);
         }
+    }
+
+    _setTexture () {
+        // Pull out the ImageData from the canvas. ImageData speeds up
+        // updating Silhouette and is better handled by more browsers in
+        // regards to memory.
+        const canvas = this._svgRenderer.canvas;
+        const context = canvas.getContext('2d');
+        const textureData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+        const gl = this._renderer.gl;
+        gl.bindTexture(gl.TEXTURE_2D, this._texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
+        this._silhouette.update(textureData);
     }
 
     /**
@@ -87,20 +105,14 @@ class SVGSkin extends Skin {
         while ((newScale < this._maxTextureScale) && (requestedScale >= 1.5 * newScale)) {
             newScale *= 2;
         }
+
         if (this._textureScale !== newScale) {
             this._textureScale = newScale;
             this._svgRenderer._draw(this._textureScale, () => {
                 if (this._textureScale === newScale) {
-                    const canvas = this._svgRenderer.canvas;
-                    const context = canvas.getContext('2d');
-                    const textureData = context.getImageData(0, 0, canvas.width, canvas.height);
-
-                    const gl = this._renderer.gl;
-                    gl.bindTexture(gl.TEXTURE_2D, this._texture);
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
-                    this._silhouette.update(textureData);
+                    this._setTexture();
                 }
-            });
+            }, this._rawRotationCenter, MINIMUM_SVG_SCALE);
         }
 
         return this._texture;
@@ -114,47 +126,39 @@ class SVGSkin extends Skin {
      * @fires Skin.event:WasAltered
      */
     setSVG (svgData, rotationCenter) {
-        this._svgRenderer.fromString(svgData, 1, () => {
+        this._svgRenderer.loadString(svgData);
+
+        this._svgRenderer._draw(1, () => {
             const gl = this._renderer.gl;
             this._textureScale = this._maxTextureScale = 1;
 
-            // Pull out the ImageData from the canvas. ImageData speeds up
-            // updating Silhouette and is better handled by more browsers in
-            // regards to memory.
-            const canvas = this._svgRenderer.canvas;
-            const context = canvas.getContext('2d');
-            const textureData = context.getImageData(0, 0, canvas.width, canvas.height);
-
-            if (this._texture) {
-                gl.bindTexture(gl.TEXTURE_2D, this._texture);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
-                this._silhouette.update(textureData);
-            } else {
-                // TODO: mipmaps?
+            if (!this._texture) {
                 const textureOptions = {
-                    auto: true,
-                    wrap: gl.CLAMP_TO_EDGE,
-                    src: textureData
+                    auto: false,
+                    wrap: gl.CLAMP_TO_EDGE
                 };
 
                 this._texture = twgl.createTexture(gl, textureOptions);
-                this._silhouette.update(textureData);
             }
 
+            this._setTexture();
+
             const maxDimension = Math.max(this._svgRenderer.canvas.width, this._svgRenderer.canvas.height);
+
+            // This is the maximum power-of-two scale that the texture can be rendered at.
             let testScale = 2;
-            for (testScale; maxDimension * testScale <= MAX_TEXTURE_DIMENSION; testScale *= 2) {
+            for (testScale; maxDimension * testScale <= this.MAX_TEXTURE_DIMENSION; testScale *= 2) {
                 this._maxTextureScale = testScale;
             }
 
-            if (typeof rotationCenter === 'undefined') rotationCenter = this.calculateRotationCenter();
-            this.size = this._svgRenderer.size;
+            this.size = this._svgRenderer.textureSize;
+
             this._viewOffset = this._svgRenderer.viewOffset;
             // Reset rawRotationCenter when we update viewOffset.
             this._rawRotationCenter = [NaN, NaN];
             this.setRotationCenter(rotationCenter[0], rotationCenter[1]);
             this.emit(Skin.Events.WasAltered);
-        });
+        }, rotationCenter, MINIMUM_SVG_SCALE);
     }
 
 }
