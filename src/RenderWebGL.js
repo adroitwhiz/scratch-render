@@ -893,7 +893,7 @@ class RenderWebGL extends EventEmitter {
                     extraUniforms,
                     ignoreVisibility: true // Touching color ignores sprite visibility
                 });
-            
+
             gl.stencilFunc(gl.EQUAL, 1, 1);
             gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
             gl.colorMask(true, true, true, true);
