@@ -113,7 +113,7 @@ const vec2 kCenter = vec2(0.5, 0.5);
 
 void main()
 {
-	#if defined(DRAW_MODE_default) || defined(DRAW_MODE_colorMask) || defined(DRAW_MODE_silhouette)
+	#if defined(DRAW_MODE_default) || defined(DRAW_MODE_colorMask) || defined(DRAW_MODE_silhouette) || defined(DRAW_MODE_stamp)
 	vec2 texcoord0 = v_texCoord;
 
 	#ifdef ENABLE_mosaic

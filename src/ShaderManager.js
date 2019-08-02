@@ -169,14 +169,14 @@ ShaderManager.DRAW_MODE = {
     colorMask: 'colorMask',
 
     /**
-     * Sample a "texture" to draw a line with caps.
-     */
-    lineSample: 'lineSample',
-
-    /**
      * Draw normally except for pre-multiplied alpha
      */
     stamp: 'stamp',
+
+    /**
+     * Sample a "texture" to draw a line with caps.
+     */
+    lineSample: 'lineSample',
 
     /**
      * Draw the background in a certain color. Must sometimes be used instead of gl.clear.
