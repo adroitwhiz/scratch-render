@@ -165,7 +165,7 @@ void main()
 
 	#ifdef DRAW_MODE_silhouette
 	// Discard, and hence stencil out, transparent pixels. This improves performance.
-	if (gl_FragColor.a == 0)
+	if (gl_FragColor.a == 0.0)
 	{
 		discard;
 	}
