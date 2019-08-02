@@ -192,10 +192,12 @@ class RenderWebGL extends EventEmitter {
         /** @type {Array.<snapshotCallback>} */
         this._snapshotCallbacks = [];
 
-        /** @type {Array<number>} */
+        /** @type {Array<number>}
+         * @readonly */
         this._backgroundColor4f = [0, 0, 0, 0];
 
-        /** @type {Uint8ClampedArray} */
+        /** @type {Uint8ClampedArray}
+         * @readonly */
         this._backgroundColor3b = new Uint8ClampedArray(3);
 
         this._createGeometry();
