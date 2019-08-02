@@ -176,7 +176,12 @@ ShaderManager.DRAW_MODE = {
     /**
      * Draw normally except for pre-multiplied alpha
      */
-    stamp: 'stamp'
+    stamp: 'stamp',
+
+    /**
+     * Draw the background in a certain color. Must sometimes be used instead of gl.clear.
+     */
+    background: 'background'
 };
 
 module.exports = ShaderManager;

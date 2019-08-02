@@ -41,6 +41,10 @@ uniform float u_capScale;
 uniform float u_aliasAmount;
 #endif // DRAW_MODE_lineSample
 
+#ifdef DRAW_MODE_background
+uniform vec4 u_backgroundColor;
+#endif // DRAW_MODE_background
+
 uniform sampler2D u_skin;
 
 varying vec2 v_texCoord;
@@ -109,7 +113,7 @@ const vec2 kCenter = vec2(0.5, 0.5);
 
 void main()
 {
-	#ifndef DRAW_MODE_lineSample
+	#if defined(DRAW_MODE_default) || defined(DRAW_MODE_colorMask) || defined(DRAW_MODE_silhouette)
 	vec2 texcoord0 = v_texCoord;
 
 	#ifdef ENABLE_mosaic
@@ -160,6 +164,11 @@ void main()
     #endif // ENABLE_ghost
 
 	#ifdef DRAW_MODE_silhouette
+	// Discard, and hence stencil out, transparent pixels. This improves performance.
+	if (gl_FragColor.a == 0)
+	{
+		discard;
+	}
 	// switch to u_silhouetteColor only AFTER the alpha test
 	gl_FragColor = u_silhouetteColor;
 	#else // DRAW_MODE_silhouette
@@ -196,7 +205,9 @@ void main()
 	#endif // DRAW_MODE_colorMask
 	#endif // DRAW_MODE_silhouette
 
-	#else // DRAW_MODE_lineSample
+	#endif // defined(DRAW_MODE_default) || defined(DRAW_MODE_colorMask) || defined(DRAW_MODE_silhouette)
+
+	#ifdef DRAW_MODE_lineSample
 	gl_FragColor = u_lineColor;
 	gl_FragColor.a *= clamp(
 		// Scale the capScale a little to have an aliased region.
@@ -207,4 +218,8 @@ void main()
 		1.0
 	);
 	#endif // DRAW_MODE_lineSample
+
+	#ifdef DRAW_MODE_background
+	gl_FragColor = u_backgroundColor;
+	#endif
 }
