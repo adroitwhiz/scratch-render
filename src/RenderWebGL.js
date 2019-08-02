@@ -863,7 +863,7 @@ class RenderWebGL extends EventEmitter {
         gl.viewport(0, 0, bounds.width, bounds.height);
         const projection = twgl.m4.ortho(bounds.left, bounds.right, bounds.top, bounds.bottom, -1, 1);
 
-        // Clear the query buffer to fully transparent.
+        // Clear the query buffer to fully transparent. This will be the color of pixels that fail the stencil test.
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
