@@ -23,10 +23,14 @@ const __isTouchingPosition = twgl.v3.create();
  * @return {twgl.v3} [x,y] texture space float vector - transformed by effects and matrix
  */
 const getLocalPosition = (drawable, vec) => {
-    // Transfrom from world coordinates to Drawable coordinates.
+    // Transform from world coordinates to Drawable coordinates.
     const localPosition = __isTouchingPosition;
-    // In "Scratch space" pixel coords, integers are pixel corners; in "texture space", integers are pixel centers,
-    // so offset by 0.5 (-0.5 in the X direction because it's flipped).
+    // World coordinates/screen-space coordinates refer to pixels by integer coordinates.
+    // The GL rasterizer considers a pixel to be an area sample.
+    // Without multisampling, it samples once from the pixel center,
+    // which is offset by (0.5, 0.5) from the pixel's integer coordinate.
+    // If you think of it as a pixel grid, the coordinates we're given are grid lines, but we want grid boxes.
+    // That's why we offset by 0.5 (-0.5 in the X direction because it's flipped).
     const v0 = vec[0] - 0.5;
     const v1 = vec[1] + 0.5;
     const m = drawable._inverseMatrix;

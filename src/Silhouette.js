@@ -45,8 +45,8 @@ const __cornerWork = [
 /**
  * Get the color from a given silhouette at an x/y local texture position.
  * @param {Silhouette} The silhouette to sample.
- * @param {number} x X position of texture (0-1).
- * @param {number} y Y position of texture (0-1).
+ * @param {number} x X position of texture [0, width).
+ * @param {number} y Y position of texture [0, height).
  * @param {Uint8ClampedArray} dst A color 4b space.
  * @return {Uint8ClampedArray} The dst vector.
  */
@@ -149,6 +149,7 @@ class Silhouette {
         // We cannot skip the "add 0.5 in Drawable.getLocalPosition -> subtract 0.5 here" roundtrip
         // because the two spaces are different--we add 0.5 in Drawable.getLocalPosition in "Scratch space"
         // (-240,240 & -180,180), but subtract 0.5 in silhouette space (0, width or height).
+        // See https://web.archive.org/web/20190125211252/http://hacksoflife.blogspot.com/2009/12/texture-coordinate-system-for-opengl.html
         const x = (vec[0] * (this._width)) - 0.5;
         const y = (vec[1] * (this._height)) - 0.5;
 
