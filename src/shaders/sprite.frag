@@ -164,6 +164,10 @@ void main()
     #endif // ENABLE_ghost
 
 	#ifdef DRAW_MODE_silhouette
+	// Discard fully transparent pixels for stencil test
+	if (gl_FragColor.a == 0.0) {
+		discard;
+	}
 	// switch to u_silhouetteColor only AFTER the alpha test
 	gl_FragColor = u_silhouetteColor;
 	#else // DRAW_MODE_silhouette
