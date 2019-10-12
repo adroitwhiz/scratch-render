@@ -134,7 +134,10 @@ class EffectTransform {
         const effects = drawable.getEnabledEffects() & effectMask;
 
         if ((effects & ShaderManager.EFFECT_INFO.ghost.mask) !== 0) {
-            // gl_FragColor.a *= u_ghost
+            // gl_FragColor *= u_ghost
+            dst[0] *= uniforms.u_ghost;
+            dst[1] *= uniforms.u_ghost;
+            dst[2] *= uniforms.u_ghost;
             dst[3] *= uniforms.u_ghost;
         }
 

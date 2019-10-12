@@ -196,7 +196,7 @@ class RenderWebGL extends EventEmitter {
         gl.disable(gl.DEPTH_TEST);
         /** @todo disable when no partial transparency? */
         gl.enable(gl.BLEND);
-        gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     }
 
     /**
@@ -836,7 +836,8 @@ class RenderWebGL extends EventEmitter {
                 projection,
                 {
                     extraUniforms,
-                    ignoreVisibility: true // Touching color ignores sprite visibility
+                    ignoreVisibility: true, // Touching color ignores sprite visibility,
+                    effectMask: ~ShaderManager.EFFECT_INFO.ghost.mask
                 });
 
             gl.stencilFunc(gl.EQUAL, 1, 1);
@@ -1555,7 +1556,7 @@ class RenderWebGL extends EventEmitter {
 
         try {
             gl.disable(gl.BLEND);
-            this._drawThese([stampID], ShaderManager.DRAW_MODE.stamp, projection, {ignoreVisibility: true});
+            this._drawThese([stampID], ShaderManager.DRAW_MODE.normal, projection, {ignoreVisibility: true});
         } finally {
             gl.enable(gl.BLEND);
         }
@@ -1740,14 +1741,6 @@ class RenderWebGL extends EventEmitter {
             }
 
             twgl.setUniforms(currentShader, uniforms);
-
-            /* adjust blend function for this skin */
-            if (drawable.skin.hasPremultipliedAlpha){
-                gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-            } else {
-                gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-            }
-
             twgl.drawBufferInfo(gl, this._bufferInfo, gl.TRIANGLES);
         }
 
@@ -1899,12 +1892,10 @@ class RenderWebGL extends EventEmitter {
             */
             Drawable.sampleColor4b(vec, drawables[index].drawable, __blendColor);
             // if we are fully transparent, go to the next one "down"
-            const sampleAlpha = __blendColor[3] / 255;
-            // premultiply alpha
-            dst[0] += __blendColor[0] * blendAlpha * sampleAlpha;
-            dst[1] += __blendColor[1] * blendAlpha * sampleAlpha;
-            dst[2] += __blendColor[2] * blendAlpha * sampleAlpha;
-            blendAlpha *= (1 - sampleAlpha);
+            dst[0] += __blendColor[0] * blendAlpha;
+            dst[1] += __blendColor[1] * blendAlpha;
+            dst[2] += __blendColor[2] * blendAlpha;
+            blendAlpha *= (1 - (__blendColor[3] / 255));
         }
         // Backdrop could be transparent, so we need to go to the "clear color" of the
         // draw scene (white) as a fallback if everything was alpha

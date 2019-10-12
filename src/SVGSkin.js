@@ -22,9 +22,6 @@ class SVGSkin extends Skin {
         /** @type {SvgRenderer} */
         this._svgRenderer = new SvgRenderer();
 
-        /** @type {WebGLTexture} */
-        this._texture = null;
-
         /** @type {number} */
         this._textureScale = 1;
 
@@ -81,10 +78,7 @@ class SVGSkin extends Skin {
                     const context = canvas.getContext('2d');
                     const textureData = context.getImageData(0, 0, canvas.width, canvas.height);
 
-                    const gl = this._renderer.gl;
-                    gl.bindTexture(gl.TEXTURE_2D, this._texture);
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
-                    this._silhouette.update(textureData);
+                    this._setTexture(textureData);
                 }
             });
         }
@@ -111,21 +105,17 @@ class SVGSkin extends Skin {
             const context = canvas.getContext('2d');
             const textureData = context.getImageData(0, 0, canvas.width, canvas.height);
 
-            if (this._texture) {
-                gl.bindTexture(gl.TEXTURE_2D, this._texture);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
-                this._silhouette.update(textureData);
-            } else {
+            if (this._texture === null) {
                 // TODO: mipmaps?
                 const textureOptions = {
                     auto: true,
-                    wrap: gl.CLAMP_TO_EDGE,
-                    src: textureData
+                    wrap: gl.CLAMP_TO_EDGE
                 };
 
                 this._texture = twgl.createTexture(gl, textureOptions);
-                this._silhouette.update(textureData);
             }
+
+            this._setTexture(textureData);
 
             const maxDimension = Math.max(this._svgRenderer.canvas.width, this._svgRenderer.canvas.height);
             let testScale = 2;
