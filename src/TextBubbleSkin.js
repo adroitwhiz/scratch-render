@@ -264,13 +264,13 @@ class TextBubbleSkin extends Skin {
 
             if (this._texture === null) {
                 const textureOptions = {
-                    auto: true,
+                    auto: false,
                     wrap: gl.CLAMP_TO_EDGE
                 };
 
                 this._texture = twgl.createTexture(gl, textureOptions);
             }
-    
+
             this._setTexture(textureData);
         }
 

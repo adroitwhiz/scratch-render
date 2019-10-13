@@ -108,7 +108,7 @@ class SVGSkin extends Skin {
             if (this._texture === null) {
                 // TODO: mipmaps?
                 const textureOptions = {
-                    auto: true,
+                    auto: false,
                     wrap: gl.CLAMP_TO_EDGE
                 };
 

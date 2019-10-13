@@ -90,7 +90,7 @@ class BitmapSkin extends Skin {
 
         if (this._texture === null) {
             const textureOptions = {
-                auto: true,
+                auto: false,
                 wrap: gl.CLAMP_TO_EDGE
             };
 
