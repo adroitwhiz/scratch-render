@@ -123,7 +123,7 @@ class PenSkin extends Skin {
 
         const NO_EFFECTS = 0;
         /** @type {twgl.ProgramInfo} */
-        this._stampShader = this._renderer._shaderManager.getShader(ShaderManager.DRAW_MODE.normal, NO_EFFECTS);
+        this._stampShader = this._renderer._shaderManager.getShader(ShaderManager.DRAW_MODE.default, NO_EFFECTS);
 
         /** @type {twgl.ProgramInfo} */
         this._lineShader = this._renderer._shaderManager.getShader(ShaderManager.DRAW_MODE.lineSample, NO_EFFECTS);
