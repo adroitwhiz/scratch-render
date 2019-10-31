@@ -22,6 +22,12 @@ class SVGSkin extends Skin {
         /** @type {SvgRenderer} */
         this._svgRenderer = new SvgRenderer();
 
+        /** @type {boolean} */
+        this._svgDirty = false;
+
+        /** @type {Array<number>} */
+        this._newRotationCenter = null;
+
         /** @type {WebGLTexture} */
         this._texture = null;
 
@@ -77,18 +83,39 @@ class SVGSkin extends Skin {
         while ((newScale < this._maxTextureScale) && (requestedScale >= 1.5 * newScale)) {
             newScale *= 2;
         }
-        if (this._textureScale !== newScale) {
+        if (this._svgDirty || this._textureScale !== newScale) {
             this._textureScale = newScale;
+
+            const gl = this._renderer.gl;
+
             this._svgRenderer._draw(this._textureScale, () => {
                 if (this._textureScale === newScale) {
+                    // Create the texture after the SVG has been drawn to prevent a black texture from showing up
+                    // during the frames for which the SVG is still being drawn.
+                    if (this._texture === null) {
+                        const textureOptions = {
+                            auto: false,
+                            wrap: gl.CLAMP_TO_EDGE
+                        };
+
+                        this._texture = twgl.createTexture(gl, textureOptions);
+                    }
+
                     const canvas = this._svgRenderer.canvas;
                     const context = canvas.getContext('2d');
                     const textureData = context.getImageData(0, 0, canvas.width, canvas.height);
 
-                    const gl = this._renderer.gl;
                     gl.bindTexture(gl.TEXTURE_2D, this._texture);
                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
                     this._silhouette.update(textureData);
+
+                    // Defer `Drawable` updates until the new SVG has been rendered for the first time.
+                    // See `setSVG` for more details on why this needs to be done.
+                    if (this._svgDirty) {
+                        this.setRotationCenter.apply(this, this._newRotationCenter);
+                        this.emit(Skin.Events.WasAltered);
+                        this._svgDirty = false;
+                    }
                 }
             });
         }
@@ -104,49 +131,24 @@ class SVGSkin extends Skin {
      * @fires Skin.event:WasAltered
      */
     setSVG (svgData, rotationCenter) {
-        this._svgRenderer.fromString(svgData, 1, () => {
-            const gl = this._renderer.gl;
-            this._textureScale = this._maxTextureScale = 1;
+        this._svgRenderer.loadString(svgData);
 
-            // Pull out the ImageData from the canvas. ImageData speeds up
-            // updating Silhouette and is better handled by more browsers in
-            // regards to memory.
-            const canvas = this._svgRenderer.canvas;
+        const maxDimension = Math.max(this._svgRenderer.canvas.width, this._svgRenderer.canvas.height);
+        let testScale = 2;
+        for (testScale; maxDimension * testScale <= MAX_TEXTURE_DIMENSION; testScale *= 2) {
+            this._maxTextureScale = testScale;
+        }
 
-            if (!canvas.width || !canvas.height) {
-                super.setEmptyImageData();
-                return;
-            }
+        // When `setSVG` is called, a new rotation center is set.
+        // However, calling `setRotationCenter` emits a `WasAltered` event, which causes all `Drawable`s with this skin
+        // to recalculate their transforms. This is unwanted behavior because `setSVG` updates the texture's size, but
+        // not the texture itself. That means that for 1-2 frames when the new SVG is rendering, the `Drawable`s will
+        // display the old SVG, stretched to the new SVG's size. To prevent that, we emit the event in `getTexture`,
+        // once the SVG is first rendered. We track whether this is the *first* render via the `_svgDirty` flag.
+        if (typeof rotationCenter === 'undefined') rotationCenter = this.calculateRotationCenter();
+        this._newRotationCenter = rotationCenter;
 
-            const context = canvas.getContext('2d');
-            const textureData = context.getImageData(0, 0, canvas.width, canvas.height);
-
-            if (this._texture) {
-                gl.bindTexture(gl.TEXTURE_2D, this._texture);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
-                this._silhouette.update(textureData);
-            } else {
-                // TODO: mipmaps?
-                const textureOptions = {
-                    auto: true,
-                    wrap: gl.CLAMP_TO_EDGE,
-                    src: textureData
-                };
-
-                this._texture = twgl.createTexture(gl, textureOptions);
-                this._silhouette.update(textureData);
-            }
-
-            const maxDimension = Math.max(this._svgRenderer.canvas.width, this._svgRenderer.canvas.height);
-            let testScale = 2;
-            for (testScale; maxDimension * testScale <= MAX_TEXTURE_DIMENSION; testScale *= 2) {
-                this._maxTextureScale = testScale;
-            }
-
-            if (typeof rotationCenter === 'undefined') rotationCenter = this.calculateRotationCenter();
-            this.setRotationCenter.apply(this, rotationCenter);
-            this.emit(Skin.Events.WasAltered);
-        });
+        this._svgDirty = true;
     }
 
 }
