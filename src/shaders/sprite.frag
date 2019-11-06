@@ -1,7 +1,5 @@
 precision mediump float;
 
-uniform float u_fudge;
-
 #ifdef DRAW_MODE_silhouette
 uniform vec4 u_silhouetteColor;
 #else // DRAW_MODE_silhouette
@@ -159,9 +157,9 @@ void main()
 
 	gl_FragColor = texture2D(u_skin, texcoord0);
 
-    #ifdef ENABLE_ghost
-    gl_FragColor.a *= u_ghost;
-    #endif // ENABLE_ghost
+	#ifdef ENABLE_ghost
+	gl_FragColor *= u_ghost;
+	#endif // ENABLE_ghost
 
 	#ifdef DRAW_MODE_silhouette
 	// Discard fully transparent pixels for stencil test
@@ -207,8 +205,7 @@ void main()
 	#endif // defined(DRAW_MODE_default) || defined(DRAW_MODE_colorMask) || defined(DRAW_MODE_silhouette)
 
 	#ifdef DRAW_MODE_lineSample
-	gl_FragColor = u_lineColor;
-	gl_FragColor.a *= clamp(
+	gl_FragColor = u_lineColor * clamp(
 		// Scale the capScale a little to have an aliased region.
 		(u_capScale + u_aliasAmount -
 			u_capScale * 2.0 * distance(v_texCoord, vec2(0.5, 0.5))

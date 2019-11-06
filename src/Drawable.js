@@ -3,6 +3,7 @@ const twgl = require('twgl.js');
 const Rectangle = require('./Rectangle');
 const RenderConstants = require('./RenderConstants');
 const ShaderManager = require('./ShaderManager');
+const Skin = require('./Skin');
 const EffectTransform = require('./EffectTransform');
 
 /**
@@ -103,6 +104,8 @@ class Drawable {
         /** @todo move convex hull functionality, maybe bounds functionality overall, to Skin classes */
         this._convexHullPoints = null;
         this._convexHullDirty = true;
+
+        this._skinWasAltered = this._skinWasAltered.bind(this);
     }
 
     /**
@@ -141,7 +144,13 @@ class Drawable {
      */
     set skin (newSkin) {
         if (this._skin !== newSkin) {
+            if (this._skin) {
+                this._skin.removeListener(Skin.Events.WasAltered, this._skinWasAltered);
+            }
             this._skin = newSkin;
+            if (this._skin) {
+                this._skin.addListener(Skin.Events.WasAltered, this._skinWasAltered);
+            }
             this._skinWasAltered();
         }
     }
@@ -178,55 +187,98 @@ class Drawable {
     }
 
     /**
+     * Update the position if it is different. Marks the transform as dirty.
+     * @param {Array.<number>} position A new position.
+     */
+    updatePosition (position) {
+        if (this._position[0] !== position[0] ||
+            this._position[1] !== position[1]) {
+            this._position[0] = Math.round(position[0]);
+            this._position[1] = Math.round(position[1]);
+            this.setTransformDirty();
+        }
+    }
+
+    /**
+     * Update the direction if it is different. Marks the transform as dirty.
+     * @param {number} direction A new direction.
+     */
+    updateDirection (direction) {
+        if (this._direction !== direction) {
+            this._direction = direction;
+            this._rotationTransformDirty = true;
+            this.setTransformDirty();
+        }
+    }
+
+    /**
+     * Update the scale if it is different. Marks the transform as dirty.
+     * @param {Array.<number>} scale A new scale.
+     */
+    updateScale (scale) {
+        if (this._scale[0] !== scale[0] ||
+            this._scale[1] !== scale[1]) {
+            this._scale[0] = scale[0];
+            this._scale[1] = scale[1];
+            this._rotationCenterDirty = true;
+            this._skinScaleDirty = true;
+            this.setTransformDirty();
+        }
+    }
+
+    /**
+     * Update visibility if it is different. Marks the convex hull as dirty.
+     * @param {boolean} visible A new visibility state.
+     */
+    updateVisible (visible) {
+        if (this._visible !== visible) {
+            this._visible = visible;
+            this.setConvexHullDirty();
+        }
+    }
+
+    /**
+     * Update an effect. Marks the convex hull as dirty if the effect changes shape.
+     * @param {string} effectName The name of the effect.
+     * @param {number} rawValue A new effect value.
+     */
+    updateEffect (effectName, rawValue) {
+        const effectInfo = ShaderManager.EFFECT_INFO[effectName];
+        if (rawValue) {
+            this._effectBits |= effectInfo.mask;
+        } else {
+            this._effectBits &= ~effectInfo.mask;
+        }
+        const converter = effectInfo.converter;
+        this._uniforms[effectInfo.uniformName] = converter(rawValue);
+        if (effectInfo.shapeChanges) {
+            this.setConvexHullDirty();
+        }
+    }
+
+    /**
      * Update the position, direction, scale, or effect properties of this Drawable.
+     * @deprecated Use specific update* methods instead.
      * @param {object.<string,*>} properties The new property values to set.
      */
     updateProperties (properties) {
-        let dirty = false;
-        if ('position' in properties && (
-            this._position[0] !== properties.position[0] ||
-            this._position[1] !== properties.position[1])) {
-            this._position[0] = Math.round(properties.position[0]);
-            this._position[1] = Math.round(properties.position[1]);
-            dirty = true;
+        if ('position' in properties) {
+            this.updatePosition(properties.position);
         }
-        if ('direction' in properties && this._direction !== properties.direction) {
-            this._direction = properties.direction;
-            this._rotationTransformDirty = true;
-            dirty = true;
+        if ('direction' in properties) {
+            this.updateDirection(properties.direction);
         }
-        if ('scale' in properties && (
-            this._scale[0] !== properties.scale[0] ||
-            this._scale[1] !== properties.scale[1])) {
-            this._scale[0] = properties.scale[0];
-            this._scale[1] = properties.scale[1];
-            this._rotationCenterDirty = true;
-            this._skinScaleDirty = true;
-            dirty = true;
+        if ('scale' in properties) {
+            this.updateScale(properties.scale);
         }
         if ('visible' in properties) {
-            this._visible = properties.visible;
-            this.setConvexHullDirty();
-        }
-        if (dirty) {
-            this.setTransformDirty();
+            this.updateVisible(properties.visible);
         }
         const numEffects = ShaderManager.EFFECTS.length;
         for (let index = 0; index < numEffects; ++index) {
             const effectName = ShaderManager.EFFECTS[index];
             if (effectName in properties) {
-                const rawValue = properties[effectName];
-                const effectInfo = ShaderManager.EFFECT_INFO[effectName];
-                if (rawValue) {
-                    this._effectBits |= effectInfo.mask;
-                } else {
-                    this._effectBits &= ~effectInfo.mask;
-                }
-                const converter = effectInfo.converter;
-                this._uniforms[effectInfo.uniformName] = converter(rawValue);
-                if (effectInfo.shapeChanges) {
-                    this.setConvexHullDirty();
-                }
+                this.updateEffect(effectName, properties[effectName]);
             }
         }
     }
@@ -427,6 +479,16 @@ class Drawable {
             return true;
         }
 
+        // If the effect bits for mosaic, pixelate, whirl, or fisheye are set, use linear
+        if ((this._effectBits & (
+            ShaderManager.EFFECT_INFO.fisheye.mask |
+            ShaderManager.EFFECT_INFO.whirl.mask |
+            ShaderManager.EFFECT_INFO.pixelate.mask |
+            ShaderManager.EFFECT_INFO.mosaic.mask
+        )) !== 0) {
+            return false;
+        }
+
         // We can't use nearest neighbor unless we are a multiple of 90 rotation
         if (this._direction % 90 !== 0) {
             return false;
@@ -514,7 +576,6 @@ class Drawable {
      * @return {!Rectangle} Bounds for the Drawable.
      */
     getFastBounds (result) {
-        this.updateMatrix();
         if (!this.needsConvexHullPoints()) {
             return this.getBounds(result);
         }
@@ -622,6 +683,9 @@ class Drawable {
         const localPosition = getLocalPosition(drawable, vec);
         if (localPosition[0] < 0 || localPosition[1] < 0 ||
             localPosition[0] > 1 || localPosition[1] > 1) {
+            dst[0] = 0;
+            dst[1] = 0;
+            dst[2] = 0;
             dst[3] = 0;
             return dst;
         }

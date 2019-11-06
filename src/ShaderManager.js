@@ -169,11 +169,6 @@ ShaderManager.DRAW_MODE = {
     colorMask: 'colorMask',
 
     /**
-     * Draw normally except for pre-multiplied alpha
-     */
-    stamp: 'stamp',
-
-    /**
      * Sample a "texture" to draw a line with caps.
      */
     lineSample: 'lineSample',

@@ -30,6 +30,8 @@
 
         vm.attachStorage(storage);
         vm.attachRenderer(render);
+        vm.attachV2SVGAdapter(new ScratchSVGRenderer.SVGRenderer());
+        vm.attachV2BitmapAdapter(new ScratchSVGRenderer.BitmapAdapter());
 
         document.getElementById('file').addEventListener('click', e => {
             document.body.removeChild(document.getElementById('loaded'));

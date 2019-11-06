@@ -42,9 +42,6 @@ class TextBubbleSkin extends Skin {
         /** @type {HTMLCanvasElement} */
         this._canvas = document.createElement('canvas');
 
-        /** @type {WebGLTexture} */
-        this._texture = null;
-
         /** @type {Array<number>} */
         this._size = [0, 0];
 
@@ -267,17 +264,14 @@ class TextBubbleSkin extends Skin {
 
             if (this._texture === null) {
                 const textureOptions = {
-                    auto: true,
-                    wrap: gl.CLAMP_TO_EDGE,
-                    src: textureData
+                    auto: false,
+                    wrap: gl.CLAMP_TO_EDGE
                 };
 
                 this._texture = twgl.createTexture(gl, textureOptions);
             }
-    
-            gl.bindTexture(gl.TEXTURE_2D, this._texture);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
-            this._silhouette.update(textureData);
+
+            this._setTexture(textureData);
         }
 
         return this._texture;
