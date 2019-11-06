@@ -133,18 +133,19 @@ class EffectTransform {
         const uniforms = drawable.getUniforms();
         const effects = drawable.getEnabledEffects() & effectMask;
 
-        if ((effects & ShaderManager.EFFECT_INFO.ghost.mask) !== 0) {
-            // gl_FragColor *= u_ghost
-            dst[0] *= uniforms.u_ghost;
-            dst[1] *= uniforms.u_ghost;
-            dst[2] *= uniforms.u_ghost;
-            dst[3] *= uniforms.u_ghost;
-        }
-
         const enableColor = (effects & ShaderManager.EFFECT_INFO.color.mask) !== 0;
         const enableBrightness = (effects & ShaderManager.EFFECT_INFO.brightness.mask) !== 0;
 
         if (enableColor || enableBrightness) {
+            // gl_FragColor.rgb /= gl_FragColor.a + epsilon;
+            // epsilon is present in the shader because dividing by 0 (fully transparent pixels) messes up calculations.
+            // We're doing this with a Uint8ClampedArray here, so dividing by 0 just gives 255. We're later multiplying
+            // by 0 again, so it won't affect results.
+            const alpha = dst[3] / 255;
+            dst[0] /= alpha;
+            dst[1] /= alpha;
+            dst[2] /= alpha;
+
             // vec3 hsl = convertRGB2HSL(gl_FragColor.xyz);
             const hsl = rgbToHsl(dst);
 
@@ -177,6 +178,19 @@ class EffectTransform {
             }
             // gl_FragColor.rgb = convertHSL2RGB(hsl);
             dst.set(hslToRgb(hsl));
+
+            // gl_FragColor.rgb *= gl_FragColor.a + epsilon;
+            dst[0] *= alpha;
+            dst[1] *= alpha;
+            dst[2] *= alpha;
+        }
+
+        if ((effects & ShaderManager.EFFECT_INFO.ghost.mask) !== 0) {
+            // gl_FragColor *= u_ghost
+            dst[0] *= uniforms.u_ghost;
+            dst[1] *= uniforms.u_ghost;
+            dst[2] *= uniforms.u_ghost;
+            dst[3] *= uniforms.u_ghost;
         }
 
         return dst;
