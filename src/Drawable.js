@@ -23,10 +23,16 @@ const __isTouchingPosition = twgl.v3.create();
  * @return {twgl.v3} [x,y] texture space float vector - transformed by effects and matrix
  */
 const getLocalPosition = (drawable, vec) => {
-    // Transfrom from world coordinates to Drawable coordinates.
+    // Transform from world coordinates to Drawable coordinates.
     const localPosition = __isTouchingPosition;
-    const v0 = vec[0];
-    const v1 = vec[1];
+    // World coordinates/screen-space coordinates refer to pixels by integer coordinates.
+    // The GL rasterizer considers a pixel to be an area sample.
+    // Without multisampling, it samples once from the pixel center,
+    // which is offset by (0.5, 0.5) from the pixel's integer coordinate.
+    // If you think of it as a pixel grid, the coordinates we're given are grid lines, but we want grid boxes.
+    // That's why we offset by 0.5 (-0.5 in the X direction because it's flipped).
+    const v0 = vec[0] - 0.5;
+    const v1 = vec[1] + 0.5;
     const m = drawable._inverseMatrix;
     // var v2 = v[2];
     const d = (v0 * m[3]) + (v1 * m[7]) + m[15];
@@ -35,10 +41,7 @@ const getLocalPosition = (drawable, vec) => {
     // localPosition matches that transformation.
     localPosition[0] = 0.5 - (((v0 * m[0]) + (v1 * m[4]) + m[12]) / d);
     localPosition[1] = (((v0 * m[1]) + (v1 * m[5]) + m[13]) / d) + 0.5;
-    // Apply texture effect transform if the localPosition is within the drawable's space.
-    if ((localPosition[0] >= 0 && localPosition[0] < 1) && (localPosition[1] >= 0 && localPosition[1] < 1)) {
-        EffectTransform.transformPoint(drawable, localPosition, localPosition);
-    }
+    EffectTransform.transformPoint(drawable, localPosition, localPosition);
     return localPosition;
 };
 
@@ -623,10 +626,9 @@ class Drawable {
             return dst;
         }
         const textColor =
-        // commenting out to only use nearest for now
-        // drawable.useNearest ?
-             drawable.skin._silhouette.colorAtNearest(localPosition, dst);
-        // : drawable.skin._silhouette.colorAtLinear(localPosition, dst);
+        drawable.useNearest ?
+            drawable.skin._silhouette.colorAtNearest(localPosition, dst) :
+            drawable.skin._silhouette.colorAtLinear(localPosition, dst);
         return EffectTransform.transformColor(drawable, textColor, textColor);
     }
 }
