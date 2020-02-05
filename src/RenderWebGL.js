@@ -775,6 +775,8 @@ class RenderWebGL extends EventEmitter {
         const color = __touchingColor;
         const hasMask = Boolean(mask3b);
 
+        drawable.updateCPURenderAttributes();
+
         // Scratch Space - +y is top
         for (let y = bounds.bottom; y <= bounds.top; y++) {
             if (bounds.width * (y - bounds.bottom) * (candidates.length + 1) >= maxPixelsForCPU) {
@@ -918,6 +920,8 @@ class RenderWebGL extends EventEmitter {
         const drawable = this._allDrawables[drawableID];
         const point = __isTouchingDrawablesPoint;
 
+        drawable.updateCPURenderAttributes();
+
         // This is an EXTREMELY brute force collision detector, but it is
         // still faster than asking the GPU to give us the pixels.
         for (let x = bounds.left; x <= bounds.right; x++) {
@@ -994,12 +998,7 @@ class RenderWebGL extends EventEmitter {
         const bounds = this.clientSpaceToScratchBounds(centerX, centerY, touchWidth, touchHeight);
         const worldPos = twgl.v3.create();
 
-        drawable.updateMatrix();
-        if (drawable.skin) {
-            drawable.skin.updateSilhouette(this._getDrawableScreenSpaceScale(drawable));
-        } else {
-            log.warn(`Could not find skin for drawable with id: ${drawableID}`);
-        }
+        drawable.updateCPURenderAttributes();
 
         for (worldPos[1] = bounds.bottom; worldPos[1] <= bounds.top; worldPos[1]++) {
             for (worldPos[0] = bounds.left; worldPos[0] <= bounds.right; worldPos[0]++) {
@@ -1030,12 +1029,7 @@ class RenderWebGL extends EventEmitter {
             const drawable = this._allDrawables[id];
             // default pick list ignores visible and ghosted sprites.
             if (drawable.getVisible() && drawable.getUniforms().u_ghost !== 0) {
-                drawable.updateMatrix();
-                if (drawable.skin) {
-                    drawable.skin.updateSilhouette(this._getDrawableScreenSpaceScale(drawable));
-                } else {
-                    log.warn(`Could not find skin for drawable with id: ${id}`);
-                }
+                drawable.updateCPURenderAttributes();
                 return true;
             }
             return false;
@@ -1267,8 +1261,6 @@ class RenderWebGL extends EventEmitter {
         /** @todo remove this once URL-based skin setting is removed. */
         if (!drawable.skin || !drawable.skin.getTexture([100, 100])) return null;
 
-        drawable.updateMatrix();
-        drawable.skin.updateSilhouette(this._getDrawableScreenSpaceScale(drawable));
         const bounds = drawable.getFastBounds();
 
         // Limit queries to the stage size.
@@ -1305,8 +1297,7 @@ class RenderWebGL extends EventEmitter {
                 const drawable = this._allDrawables[id];
                 if (drawable.skin && drawable._visible) {
                     // Update the CPU position data
-                    drawable.updateMatrix();
-                    drawable.skin.updateSilhouette(this._getDrawableScreenSpaceScale(drawable));
+                    drawable.updateCPURenderAttributes();
                     const candidateBounds = drawable.getFastBounds();
                     if (bounds.intersects(candidateBounds)) {
                         result.push({
@@ -1790,6 +1781,8 @@ class RenderWebGL extends EventEmitter {
         if (!drawable.getVisible() || width === 0 || height === 0) {
             return [];
         }
+
+        drawable.updateCPURenderAttributes();
 
         /**
          * Return the determinant of two vectors, the vector from A to B and
