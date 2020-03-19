@@ -108,13 +108,10 @@ class Skin extends EventEmitter {
      * @fires Skin.event:WasAltered
      */
     setRotationCenter (x, y) {
-        const emptySkin = this.size[0] === 0 && this.size[1] === 0;
         // Compare a 32 bit x and y value against the stored 32 bit center
-        // values.
-        const changed = (
-            toFloat32(x) !== this._rotationCenter[0] ||
-            toFloat32(y) !== this._rotationCenter[1]);
-        if (!emptySkin && changed) {
+        // values, as this._rotationCenter is a Float32Array.
+        if (toFloat32(x) !== this._rotationCenter[0] ||
+            toFloat32(y) !== this._rotationCenter[1]) {
             this._rotationCenter[0] = x;
             this._rotationCenter[1] = y;
             this.emit(Skin.Events.WasAltered);
@@ -211,9 +208,6 @@ class Skin extends EventEmitter {
             // and SVGSkin, so we can't use that same field for caching)
             this._emptyImageTexture = twgl.createTexture(gl, textureOptions);
         }
-
-        this._rotationCenter[0] = 0;
-        this._rotationCenter[1] = 0;
 
         this._silhouette.update(this._emptyImageData);
         this.emit(Skin.Events.WasAltered);

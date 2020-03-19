@@ -74,11 +74,16 @@ class BitmapSkin extends Skin {
      * calculated from the bounding box
      * @fires Skin.event:WasAltered
      */
-    setBitmap (bitmapData, costumeResolution, rotationCenter) {
+    setBitmap (bitmapData, costumeResolution = 2, rotationCenter) {
+        const textureSize = BitmapSkin._getBitmapSize(bitmapData);
+        if (typeof rotationCenter === 'undefined') rotationCenter = this.calculateRotationCenter();
+
         if (!bitmapData.width || !bitmapData.height) {
+            this.setRotationCenter.apply(this, rotationCenter);
             super.setEmptyImageData();
             return;
         }
+
         const gl = this._renderer.gl;
 
         // Preferably bitmapData is ImageData. ImageData speeds up updating
@@ -104,10 +109,8 @@ class BitmapSkin extends Skin {
         this._setTexture(textureData);
 
         // Do these last in case any of the above throws an exception
-        this._costumeResolution = costumeResolution || 2;
-        this._textureSize = BitmapSkin._getBitmapSize(bitmapData);
-
-        if (typeof rotationCenter === 'undefined') rotationCenter = this.calculateRotationCenter();
+        this._costumeResolution = costumeResolution;
+        this._textureSize = textureSize;
         this.setRotationCenter.apply(this, rotationCenter);
 
         this.emit(Skin.Events.WasAltered);

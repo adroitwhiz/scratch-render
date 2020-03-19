@@ -159,8 +159,18 @@ class SVGSkin extends Skin {
      */
     setSVG (svgData, rotationCenter) {
         this._svgRenderer.loadSVG(svgData, false, () => {
+            if (typeof rotationCenter === 'undefined') rotationCenter = this.calculateRotationCenter();
+            this.setRotationCenter.apply(this, rotationCenter);
+
             const svgSize = this._svgRenderer.size;
             if (svgSize[0] === 0 || svgSize[1] === 0) {
+                // There are a lot of 0x0 vector costumes floating around whose rotation centers are set to [240, 180],
+                // but should not be fenced as such-- see https://github.com/LLK/scratch-flash/blob/646523e6846ad0dd993213a38b46fe2ea511d026/src/scratch/ScratchSprite.as#L193
+                // and https://github.com/LLK/scratch-paint/issues/983.
+                if (svgSize[0] === 0 && svgSize[1] === 0) {
+                    this._rotationCenter[0] = 0;
+                    this._rotationCenter[1] = 0;
+                }
                 super.setEmptyImageData();
                 return;
             }
@@ -172,9 +182,6 @@ class SVGSkin extends Skin {
             }
 
             this.resetMIPs();
-
-            if (typeof rotationCenter === 'undefined') rotationCenter = this.calculateRotationCenter();
-            this.setRotationCenter.apply(this, rotationCenter);
             this.emit(Skin.Events.WasAltered);
         });
     }
