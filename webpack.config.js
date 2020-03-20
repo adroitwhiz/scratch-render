@@ -11,18 +11,27 @@ const base = {
     },
     devtool: 'cheap-module-source-map',
     module: {
-        rules: [
-            {
-                include: [
-                    path.resolve('src')
-                ],
-                test: /\.js$/,
-                loader: 'babel-loader',
-                options: {
-                    presets: [['env', {targets: {browsers: ['last 3 versions', 'Safari >= 8', 'iOS >= 8']}}]]
-                }
+        rules: [{
+            include: path.resolve('swrender'),
+            loader: 'babel-loader',
+            options: {
+                babelrc: false,
+                plugins: [
+                    '@babel/plugin-syntax-import-meta',
+                    ['bundled-import-meta', {
+                        importStyle: 'cjs'
+                    }]
+                ]
             }
-        ]
+        },
+        {
+            test: /\.wasm$/,
+            loader: 'webassembly-loader',
+            type: 'javascript/auto',
+            options: {
+                export: 'buffer'
+            }
+        }]
     },
     optimization: {
         minimizer: [

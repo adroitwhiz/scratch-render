@@ -14,6 +14,21 @@ const TextBubbleSkin = require('./TextBubbleSkin');
 const EffectTransform = require('./EffectTransform');
 const log = require('./util/log');
 
+let onLoadSwRender = null;
+let swRenderLoaded = false;
+// eslint-disable-next-line no-unused-vars
+let swrender = null;
+
+const wasm = require('../swrender/build/swrender_bg.wasm');
+const swrenderInit = require('../swrender/build/swrender.js').default;
+
+swrenderInit(wasm)
+    .then(res => {
+        swrender = res;
+        swRenderLoaded = true;
+        if (onLoadSwRender) onLoadSwRender();
+    });
+
 const __isTouchingDrawablesPoint = twgl.v3.create();
 const __candidatesBounds = new Rectangle();
 const __fenceBounds = new Rectangle();
@@ -112,6 +127,14 @@ class RenderWebGL extends EventEmitter {
      */
     static _getContext (canvas) {
         return twgl.getWebGLContext(canvas, {alpha: false, stencil: true, antialias: false});
+    }
+
+    init () {
+        if (swRenderLoaded) return Promise.resolve();
+
+        return new Promise(resolve => {
+            onLoadSwRender = resolve;
+        });
     }
 
     /**
