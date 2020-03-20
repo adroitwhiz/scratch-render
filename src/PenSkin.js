@@ -78,13 +78,7 @@ class PenSkin extends Skin {
      * @listens RenderWebGL#event:NativeSizeChanged
      */
     constructor (id, renderer) {
-        super(id);
-
-        /**
-         * @private
-         * @type {RenderWebGL}
-         */
-        this._renderer = renderer;
+        super(id, renderer);
 
         /** @type {HTMLCanvasElement} */
         this._canvas = document.createElement('canvas');
@@ -568,6 +562,8 @@ class PenSkin extends Skin {
                 this._canvas.width, this._canvas.height,
                 gl.RGBA, gl.UNSIGNED_BYTE, this._silhouettePixels
             );
+
+            this._newSilhouette.set_data(this._canvas.width, this._canvas.height, this._silhouettePixels);
 
             this._silhouetteImageData.data.set(this._silhouettePixels);
             this._silhouette.update(this._silhouetteImageData, true /* isPremultiplied */);

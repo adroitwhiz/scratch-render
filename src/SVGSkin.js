@@ -22,10 +22,7 @@ class SVGSkin extends Skin {
      * @extends Skin
      */
     constructor (id, renderer) {
-        super(id);
-
-        /** @type {RenderWebGL} */
-        this._renderer = renderer;
+        super(id, renderer);
 
         /** @type {SvgRenderer} */
         this._svgRenderer = new SvgRenderer();
@@ -99,6 +96,12 @@ class SVGSkin extends Skin {
         // Check if this is the largest MIP created so far. Currently, silhouettes only get scaled up.
         if (this._largestMIPScale < scale) {
             this._silhouette.update(textureData);
+            this._renderer.softwareRenderer.set_silhouette(
+                this._id,
+                textureData.width,
+                textureData.height,
+                textureData.data
+            );
             this._largestMIPScale = scale;
         }
 

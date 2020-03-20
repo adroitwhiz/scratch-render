@@ -10,7 +10,7 @@ class BitmapSkin extends Skin {
      * @param {!RenderWebGL} renderer - The renderer which will use this skin.
      */
     constructor (id, renderer) {
-        super(id);
+        super(id, renderer);
 
         /** @type {!int} */
         this._costumeResolution = 1;

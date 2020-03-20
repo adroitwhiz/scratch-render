@@ -22,10 +22,14 @@ class Skin extends EventEmitter {
     /**
      * Create a Skin, which stores and/or generates textures for use in rendering.
      * @param {int} id - The unique ID for this Skin.
+     * @param {!RenderWebGL} renderer - The renderer which will use this skin.
      * @constructor
      */
-    constructor (id) {
+    constructor (id, renderer) {
         super();
+
+        /** @type {RenderWebGL} */
+        this._renderer = renderer;
 
         /** @type {int} */
         this._id = id;
@@ -62,6 +66,8 @@ class Skin extends EventEmitter {
          */
         this._silhouette = new Silhouette();
 
+        renderer.softwareRenderer.set_silhouette(id, 0, 0, new Uint8Array(0));
+
         this.setMaxListeners(RenderConstants.SKIN_SHARE_SOFT_LIMIT);
     }
 
@@ -70,6 +76,7 @@ class Skin extends EventEmitter {
      */
     dispose () {
         this._id = RenderConstants.ID_NONE;
+        this._newSilhouette.free();
     }
 
     /**
@@ -182,6 +189,12 @@ class Skin extends EventEmitter {
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
 
         this._silhouette.update(textureData);
+        this._renderer.softwareRenderer.set_silhouette(
+            this._id,
+            textureData.width,
+            textureData.height,
+            textureData.data
+        );
     }
 
     /**
@@ -216,6 +229,7 @@ class Skin extends EventEmitter {
         this._rotationCenter[1] = 0;
 
         this._silhouette.update(this._emptyImageData);
+        this._renderer.softwareRenderer.set_silhouette(this._id, 1, 1, this._emptyImageData);
         this.emit(Skin.Events.WasAltered);
     }
 
