@@ -333,10 +333,10 @@ class PenSkin extends Skin {
                 gl.RGBA, gl.UNSIGNED_BYTE, this._silhouettePixels
             );
 
-            this._newSilhouette.set_data(this._canvas.width, this._canvas.height, this._silhouettePixels);
-
             this._silhouetteImageData.data.set(this._silhouettePixels);
             this._silhouette.update(this._silhouetteImageData, true /* isPremultiplied */);
+
+            this._setSilhouetteFromData(this._silhouetteImageData);
 
             this._silhouetteDirty = false;
         }

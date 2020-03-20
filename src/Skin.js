@@ -63,7 +63,7 @@ class Skin extends EventEmitter {
      */
     dispose () {
         this._id = RenderConstants.ID_NONE;
-        this._newSilhouette.free();
+        if (this._newSilhouette) this._newSilhouette.free();
     }
 
     /**
@@ -162,12 +162,7 @@ class Skin extends EventEmitter {
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
 
         this._silhouette.update(textureData);
-        this._renderer.softwareRenderer.set_silhouette(
-            this._id,
-            textureData.width,
-            textureData.height,
-            textureData.data
-        );
+        this._setSilhouetteFromData(textureData);
     }
 
     /**
@@ -202,8 +197,21 @@ class Skin extends EventEmitter {
         this._rotationCenter[1] = 0;
 
         this._silhouette.update(this._emptyImageData);
-        this._renderer.softwareRenderer.set_silhouette(this._id, 1, 1, this._emptyImageData);
+        this._setSilhouetteFromData(this._emptyImageData);
         this.emit(Skin.Events.WasAltered);
+    }
+
+    _setSilhouetteFromData (data) {
+        const size = this.size;
+        this._renderer.softwareRenderer.set_silhouette(
+            this._id,
+            data.width,
+            data.height,
+            data.data,
+
+            size[0],
+            size[1]
+        );
     }
 
     /**
