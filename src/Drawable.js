@@ -59,11 +59,14 @@ class Drawable {
      * An object which can be drawn by the renderer.
      * @todo double-buffer all rendering state (position, skin, effects, etc.)
      * @param {!int} id - This Drawable's unique ID.
+     * @param {!RenderWebGL} renderer - The renderer which will use this skin.
      * @constructor
      */
-    constructor (id) {
+    constructor (id, renderer) {
         /** @type {!int} */
         this._id = id;
+
+        this._renderer = renderer;
 
         /**
          * The uniforms to be used by the vertex and pixel shaders.
@@ -134,6 +137,7 @@ class Drawable {
     dispose () {
         // Use the setter: disconnect events
         this.skin = null;
+        this._renderer.softwareRenderer.remove_drawable(this.id);
     }
 
     /**
@@ -655,6 +659,14 @@ class Drawable {
 
             this.isTouching = this._isTouchingNever;
         }
+
+        this._renderer.softwareRenderer.set_drawable(
+            this.id,
+            this._uniforms.u_modelMatrix,
+            // TODO: calculate inverse matrix in the Rust side
+            this._inverseMatrix,
+            this.skin.id
+        );
     }
 
     /**

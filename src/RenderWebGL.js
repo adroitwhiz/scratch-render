@@ -17,14 +17,14 @@ const log = require('./util/log');
 let onLoadSwRender = null;
 let swRenderLoaded = false;
 // eslint-disable-next-line no-unused-vars
-let swrender = null;
+const swrender = require('../swrender/build/swrender.js');
 
 const wasm = require('../swrender/build/swrender_bg.wasm');
 const swrenderInit = require('../swrender/build/swrender.js').default;
 
 swrenderInit(wasm)
-    .then(res => {
-        swrender = res;
+    .then(() => {
+        window.swrender = swrender;
         swRenderLoaded = true;
         if (onLoadSwRender) onLoadSwRender();
     });
@@ -134,6 +134,10 @@ class RenderWebGL extends EventEmitter {
 
         return new Promise(resolve => {
             onLoadSwRender = resolve;
+        }).then(() => {
+            this.swrender = swrender;
+
+            this.softwareRenderer = swrender.SoftwareRenderer.new();
         });
     }
 
@@ -500,7 +504,7 @@ class RenderWebGL extends EventEmitter {
             return;
         }
         const drawableID = this._nextDrawableId++;
-        const drawable = new Drawable(drawableID);
+        const drawable = new Drawable(drawableID, this);
         this._allDrawables[drawableID] = drawable;
         this._addToDrawList(drawableID, group);
 
@@ -992,28 +996,9 @@ class RenderWebGL extends EventEmitter {
         const bounds = this._candidatesBounds(candidates);
 
         const drawable = this._allDrawables[drawableID];
-        const point = __isTouchingDrawablesPoint;
-
         drawable.updateCPURenderAttributes();
 
-        // This is an EXTREMELY brute force collision detector, but it is
-        // still faster than asking the GPU to give us the pixels.
-        for (let x = bounds.left; x <= bounds.right; x++) {
-            // Scratch Space - +y is top
-            point[0] = x;
-            for (let y = bounds.bottom; y <= bounds.top; y++) {
-                point[1] = y;
-                if (drawable.isTouching(point)) {
-                    for (let index = 0; index < candidates.length; index++) {
-                        if (candidates[index].drawable.isTouching(point)) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-
-        return false;
+        return this.softwareRenderer.is_touching_drawables(drawableID, candidates.map(c => c.id), bounds);
     }
 
     /**
@@ -1475,6 +1460,7 @@ class RenderWebGL extends EventEmitter {
      */
     _candidatesTouching (drawableID, candidateIDs) {
         const bounds = this._touchingBounds(drawableID);
+        bounds.snapToInt();
         const result = [];
         if (bounds === null) {
             return result;

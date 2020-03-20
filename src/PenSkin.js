@@ -39,13 +39,7 @@ class PenSkin extends Skin {
      * @listens RenderWebGL#event:NativeSizeChanged
      */
     constructor (id, renderer) {
-        super(id);
-
-        /**
-         * @private
-         * @type {RenderWebGL}
-         */
-        this._renderer = renderer;
+        super(id, renderer);
 
         /** @type {Array<number>} */
         this._size = null;
@@ -338,6 +332,8 @@ class PenSkin extends Skin {
                 this._size[0], this._size[1],
                 gl.RGBA, gl.UNSIGNED_BYTE, this._silhouettePixels
             );
+
+            this._newSilhouette.set_data(this._canvas.width, this._canvas.height, this._silhouettePixels);
 
             this._silhouetteImageData.data.set(this._silhouettePixels);
             this._silhouette.update(this._silhouetteImageData, true /* isPremultiplied */);
