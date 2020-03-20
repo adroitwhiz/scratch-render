@@ -1,12 +1,12 @@
-use wasm_bindgen::prelude::*;
+use crate::matrix::Vec2;
 
 pub type SilhouetteID = u32;
 
-#[wasm_bindgen]
 pub struct Silhouette {
+    pub id: SilhouetteID,
     pub width: u32,
     pub height: u32,
-    pub id: SilhouetteID,
+    pub nominal_size: Vec2,
     data: Box<[u8]>,
     _blank: Box<[u8; 4]>
 }
@@ -14,20 +14,22 @@ pub struct Silhouette {
 impl Silhouette {
     pub fn new(id: SilhouetteID) -> Silhouette {
         Silhouette {
+            id,
             width: 0,
             height: 0,
-            id,
+            nominal_size: Vec2(0f32, 0f32),
             data: Box::new([0, 0, 0, 0]),
             _blank: Box::new([0, 0, 0, 0])
         }
     }
 
-    pub fn set_data(&mut self, w: u32, h: u32, data: Box<[u8]>) {
+    pub fn set_data(&mut self, w: u32, h: u32, data: Box<[u8]>, nominal_size: Vec2) {
         assert_eq!(data.len(), (w * h * 4) as usize, "silhouette data is improperly sized");
 
         self.width = w;
         self.height = h;
         self.data = data;
+        self.nominal_size = nominal_size;
     }
 
     pub fn get_point(&self, x: i32, y: i32) -> bool {

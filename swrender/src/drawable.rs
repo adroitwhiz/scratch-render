@@ -1,5 +1,6 @@
 use crate::silhouette::*;
 use crate::matrix::*;
+use crate::effect_transform::{Effects, EffectBits, transform_point, DISTORTION_EFFECT_MASK};
 
 pub type DrawableID = u32;
 
@@ -7,7 +8,9 @@ pub struct Drawable {
     pub matrix: Mat4,
     pub inverse_matrix: Mat4,
     pub silhouette: SilhouetteID,
-    pub id: DrawableID
+    pub id: DrawableID,
+    pub effects: Effects,
+    pub effect_bits: EffectBits
 }
 
 impl Drawable {
@@ -22,12 +25,24 @@ impl Drawable {
         let out_x = 0.5 - (((v0 * m[0]) + (v1 * m[4]) + m[12]) / d);
         let out_y = (((v0 * m[1]) + (v1 * m[5]) + m[13]) / d) + 0.5;
 
-        (out_x, out_y)
+        Vec2(out_x, out_y)
+    }
+
+    pub fn get_transformed_position(&self, vec: Vec2, skin_size: Vec2) -> Vec2 {
+        if (self.effect_bits & DISTORTION_EFFECT_MASK) == 0 {
+            vec
+        } else {
+            transform_point(vec, &self.effects, &self.effect_bits, skin_size)
+        }
     }
 
     #[inline(always)]
     pub fn is_touching(&self, position: Vec2, silhouette: &Silhouette) -> bool {
         let local_position = self.get_local_position(position);
+        if local_position.0 < 0f32 || local_position.0 >= 1f32 || local_position.1 < 0f32 || local_position.1 >= 1f32 {
+            return false;
+        }
+        let local_position = self.get_transformed_position(local_position, silhouette.nominal_size);
         silhouette.get_point((local_position.0 * silhouette.width as f32) as i32, (local_position.1 * silhouette.height as f32) as i32)
     }
 }

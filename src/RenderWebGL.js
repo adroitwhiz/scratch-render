@@ -1271,11 +1271,11 @@ class RenderWebGL extends EventEmitter {
      */
     _candidatesTouching (drawableID, candidateIDs) {
         const bounds = this._touchingBounds(drawableID);
-        bounds.snapToInt();
         const result = [];
         if (bounds === null) {
             return result;
         }
+        bounds.snapToInt();
         // iterate through the drawables list BACKWARDS - we want the top most item to be the first we check
         for (let index = candidateIDs.length - 1; index >= 0; index--) {
             const id = candidateIDs[index];

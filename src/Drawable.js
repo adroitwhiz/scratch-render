@@ -109,6 +109,8 @@ class Drawable {
          * @type {int} */
         this.enabledEffects = 0;
 
+        this._effectsDirty = true;
+
         /** @todo move convex hull functionality, maybe bounds functionality overall, to Skin classes */
         this._convexHullPoints = null;
         this._convexHullDirty = true;
@@ -239,6 +241,10 @@ class Drawable {
         }
     }
 
+    setEffectsDirty () {
+        this._effectsDirty = true;
+    }
+
     /**
      * Update an effect. Marks the convex hull as dirty if the effect changes shape.
      * @param {string} effectName The name of the effect.
@@ -256,6 +262,7 @@ class Drawable {
         if (effectInfo.shapeChanges) {
             this.setConvexHullDirty();
         }
+        this.setEffectsDirty();
     }
 
     /**
@@ -646,12 +653,18 @@ class Drawable {
         // CPU rendering always occurs at the "native" size, so no need to scale up this._scale
         if (this.skin) this.skin.updateSilhouette(this._scale);
 
+        let effects = null;
+        if (this._effectsDirty) {
+            effects = this._uniforms;
+            this._effectsDirty = false;
+        }
+
         this._renderer.softwareRenderer.set_drawable(
             this.id,
             this._uniforms.u_modelMatrix,
-            // TODO: calculate inverse matrix in the Rust side
-            this._inverseMatrix,
-            this.skin.id
+            this.skin.id,
+            effects,
+            this.enabledEffects
         );
     }
 
