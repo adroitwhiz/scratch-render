@@ -2,20 +2,7 @@ use crate::matrix::Vec2;
 
 pub type SilhouetteID = i32;
 
-use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen]
-extern {
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn time(s: &str);
-
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn timeEnd(s: &str);
-
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn log(s: &str);
-}
-
+/// The CPU-side version of a Skin.
 pub struct Silhouette {
     pub id: SilhouetteID,
     pub width: u32,
@@ -37,6 +24,7 @@ impl Silhouette {
         }
     }
 
+    /// Update this silhouette with the bitmap data passed in from a Skin.
     pub fn set_data(
         &mut self,
         w: u32,
@@ -76,7 +64,8 @@ impl Silhouette {
         self.data = data;
     }
 
-    pub fn get_point(&self, x: i32, y: i32) -> bool {
+    /// Returns whether the pixel at the given "silhouette-space" position has an alpha > 0.
+    fn get_point(&self, x: i32, y: i32) -> bool {
         if x < 0 || y < 0 || (x as u32) >= self.width || (y as u32) >= self.height {
             false
         } else {
@@ -85,7 +74,8 @@ impl Silhouette {
         }
     }
 
-    pub fn get_color(&self, x: i32, y: i32) -> [u8; 4] {
+    /// Get the color from a given silhouette at the given "silhouette-space" position.
+    fn get_color(&self, x: i32, y: i32) -> [u8; 4] {
         if x < 0 || y < 0 || (x as u32) >= self.width || (y as u32) >= self.height {
             self._blank
         } else {
@@ -99,6 +89,7 @@ impl Silhouette {
         }
     }
 
+    /// Test if the given texture coordinate (in range [0, 1]) touches the silhouette, using nearest-neighbor interpolation.
     pub fn is_touching_nearest(&self, vec: Vec2) -> bool {
         self.get_point(
             (vec.0 * self.width as f32) as i32,
@@ -106,6 +97,7 @@ impl Silhouette {
         )
     }
 
+    /// Sample a color at the given texture coordinates (in range [0, 1]) using nearest-neighbor interpolation.
     pub fn color_at_nearest(&self, vec: Vec2) -> [u8; 4] {
         self.get_color(
             (vec.0 * self.width as f32) as i32,
@@ -113,7 +105,9 @@ impl Silhouette {
         )
     }
 
+    /// Test if the given texture coordinate (in range [0, 1]) touches the silhouette, using linear interpolation.
     pub fn is_touching_linear(&self, vec: Vec2) -> bool {
+        // TODO: this often gives incorrect results, especially for coordinates whose fractional part is close to 0.5
         let x = ((vec.0 * self.width as f32) - 0.5) as i32;
         let y = ((vec.1 * self.height as f32) - 0.5) as i32;
 
