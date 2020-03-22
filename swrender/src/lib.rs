@@ -56,6 +56,8 @@ impl SoftwareRenderer {
         renderer
     }
 
+    /// Update the given CPU-side drawable's attributes given its ID.
+    /// Will create a new drawable on the CPU side if one doesn't yet exist.
     pub fn set_drawable(
         &mut self,
         id: drawable::DrawableID,
@@ -66,7 +68,6 @@ impl SoftwareRenderer {
         use_nearest_neighbor: bool,
     ) {
         let d = self.drawables.entry(id).or_insert(drawable::Drawable {
-            matrix: [0.0; 16],
             inverse_matrix: [0.0; 16],
             effects: effect_transform::Effects::default(),
             effect_bits: 0,
@@ -79,10 +80,10 @@ impl SoftwareRenderer {
         });
 
         if let Some(m) = matrix {
-            d.matrix = (*m)
+            let mat: matrix::Mat4 = (*m)
                 .try_into()
                 .expect("drawable's matrix contains 16 elements");
-            d.inverse_matrix = d.matrix.inverse();
+            d.inverse_matrix = mat.inverse();
         }
         if let Some(s) = silhouette {
             d.silhouette = s;
@@ -94,10 +95,13 @@ impl SoftwareRenderer {
         d.use_nearest_neighbor = use_nearest_neighbor;
     }
 
+    /// Delete the CPU-side drawable with the given ID.
     pub fn remove_drawable(&mut self, id: drawable::DrawableID) {
         self.drawables.remove(&id);
     }
 
+    /// Update the given silhouette's attributes and data given the corresponding skin's ID.
+    /// Will create a new silhouette if one does not exist.
     pub fn set_silhouette(
         &mut self,
         id: silhouette::SilhouetteID,
@@ -121,10 +125,12 @@ impl SoftwareRenderer {
         );
     }
 
+    /// Delete the silhouette that corresponds to the skin with the given ID.
     pub fn remove_silhouette(&mut self, id: silhouette::SilhouetteID) {
         self.silhouettes.remove(&id);
     }
 
+    /// Map a set of drawable IDs to a Vec of tuples of the given drawables + their silhouettes,
     fn map_candidates(
         &self,
         candidates: Vec<drawable::DrawableID>,
@@ -142,6 +148,8 @@ impl SoftwareRenderer {
             .collect()
     }
 
+    /// Perform the given function on a given drawable once per pixel inside the given rectangle,
+    /// stopping and returning true once the function does.
     fn per_rect_pixel<F>(&self, func: F, rect: JSRectangle, drawable: drawable::DrawableID) -> bool
     where
         F: Fn(matrix::Vec2, &drawable::Drawable, &silhouette::Silhouette) -> bool,
@@ -169,6 +177,8 @@ impl SoftwareRenderer {
         false
     }
 
+    /// Check if a particular Drawable is touching any in a set of Drawables.
+    /// Will only check inside the given bounds.
     pub fn is_touching_drawables(
         &mut self,
         drawable: drawable::DrawableID,
@@ -192,12 +202,17 @@ impl SoftwareRenderer {
         )
     }
 
+    /// Determines if the given color is "close enough" (only test the 5 top bits for
+    /// red and green, 4 bits for blue).  These bit masks are what Scratch 2 used to use,
+    /// so we do the same.
     #[inline(always)]
     fn color_matches(a: [u8; 3], b: [u8; 3]) -> bool {
         (((a[0] ^ b[0]) & 0b11111000) | ((a[1] ^ b[1]) & 0b11111000) | ((a[2] ^ b[2]) & 0b11110000))
             == 0
     }
 
+    /// Determines if the mask color is "close enough" (only test the 6 top bits for
+    /// each color).  These bit masks are what Scratch 2 used to use, so we do the same.
     #[inline(always)]
     fn mask_matches(a: [u8; 4], b: [u8; 3]) -> bool {
         a[3] != 0
@@ -207,6 +222,7 @@ impl SoftwareRenderer {
                 == 0
     }
 
+    /// Check if a certain color in a drawable is touching a particular color.
     pub fn color_is_touching_color(
         &mut self,
         drawable: drawable::DrawableID,
@@ -234,6 +250,7 @@ impl SoftwareRenderer {
         )
     }
 
+    /// Check if a certain drawable is touching a particular color.
     pub fn is_touching_color(
         &mut self,
         drawable: drawable::DrawableID,
@@ -258,6 +275,8 @@ impl SoftwareRenderer {
         )
     }
 
+    /// Sample a pixel from the stage at a given "Scratch-space" coordinate.
+    /// Will only render the passed drawables.
     fn sample_color(
         &self,
         position: matrix::Vec2,
@@ -286,6 +305,7 @@ impl SoftwareRenderer {
         [dst_color.0 as u8, dst_color.1 as u8, dst_color.2 as u8]
     }
 
+    /// Check if the drawable with the given ID is touching any pixel in the given rectangle.
     pub fn drawable_touching_rect(
         &mut self,
         drawable: drawable::DrawableID,
@@ -303,6 +323,8 @@ impl SoftwareRenderer {
         )
     }
 
+    /// Return the ID of the drawable that covers the most pixels in the given rectangle.
+    /// Drawables earlier in the list will occlude those lower in the list.
     pub fn pick(
         &mut self,
         candidates: Vec<drawable::DrawableID>,
@@ -347,6 +369,7 @@ impl SoftwareRenderer {
         hit
     }
 
+    /// Calculate the convex hull points for the drawable with the given ID.
     pub fn drawable_convex_hull_points(&mut self, drawable: drawable::DrawableID) -> Vec<f32> {
         let drawable = self
             .drawables

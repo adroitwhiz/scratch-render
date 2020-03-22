@@ -66,6 +66,9 @@ impl Effects {
     }
 }
 
+/// Converts an RGB color value to HSV. Conversion formula
+/// adapted from http://lolengine.net/blog/2013/01/13/fast-rgb-to-hsv.
+/// Assumes all channels are in the range [0, 1].
 fn rgb_to_hsv(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
     let mut r = r;
     let mut g = g;
@@ -98,6 +101,9 @@ fn rgb_to_hsv(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
     (h, s, v)
 }
 
+/// Converts an HSV color value to RRB. Conversion formula
+/// adapted from https://gist.github.com/mjackson/5311256.
+/// Assumes all channels are in the range [0, 1].
 fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
     if s < 1e-18 {
         return (v, v, v);
@@ -120,6 +126,8 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
     }
 }
 
+/// Transform a color in-place according to the passed effects + effect bits.  Will apply
+/// Ghost and Color and Brightness effects.
 pub fn transform_color<'a>(color: [u8; 4], effects: &Effects, effect_bits: EffectBits) -> [u8; 4] {
     const COLOR_DIVISOR: f32 = 1f32 / 255f32;
     let mut rgba: [f32; 4] = [
@@ -200,14 +208,15 @@ pub fn transform_color<'a>(color: [u8; 4], effects: &Effects, effect_bits: Effec
     ]
 }
 
-const CENTER: Vec2 = Vec2(0.5, 0.5);
-
+/// Transform a texture coordinate to one that would be used after applying shader effects.
 pub fn transform_point(
     point: Vec2,
     effects: &Effects,
     effect_bits: EffectBits,
     skin_size: Vec2,
 ) -> Vec2 {
+    const CENTER: Vec2 = Vec2(0.5, 0.5);
+
     let mut out = point;
 
     if effect_bits & (1 << (EffectBitfield::Mosaic as u32)) != 0 {

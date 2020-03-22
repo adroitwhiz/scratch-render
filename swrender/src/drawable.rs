@@ -7,9 +7,10 @@ use crate::silhouette::*;
 
 pub type DrawableID = i32;
 
+/// The software-renderer version of a Drawable.
+/// The `id` matches up with the corresponding JS-world Drawable.
 pub struct Drawable {
     pub id: DrawableID,
-    pub matrix: Mat4,
     pub inverse_matrix: Mat4,
     pub silhouette: SilhouetteID,
     pub effects: Effects,
@@ -18,6 +19,7 @@ pub struct Drawable {
 }
 
 impl Drawable {
+    /// Convert a "Scratch-space" location into a texture-space (0-1) location.
     pub fn get_local_position(&self, vec: Vec2) -> Vec2 {
         let v0 = vec.0 + 0.5;
         let v1 = vec.1 + 0.5;
@@ -32,7 +34,7 @@ impl Drawable {
         Vec2(out_x, out_y)
     }
 
-    pub fn get_transformed_position(&self, vec: Vec2, skin_size: Vec2) -> Vec2 {
+    fn get_transformed_position(&self, vec: Vec2, skin_size: Vec2) -> Vec2 {
         if (self.effect_bits & DISTORTION_EFFECT_MASK) == 0 {
             vec
         } else {
@@ -40,6 +42,7 @@ impl Drawable {
         }
     }
 
+    /// Check if the "Scratch-space" position touches the passed silhouette.
     #[inline(always)]
     pub fn is_touching(&self, position: Vec2, silhouette: &Silhouette) -> bool {
         let local_position = self.get_local_position(position);
@@ -59,6 +62,7 @@ impl Drawable {
         }
     }
 
+    /// Sample a color from the given "Scratch-space" position of the passed silhouette.
     #[inline(always)]
     pub fn sample_color<'a>(&self, position: Vec2, silhouette: &'a Silhouette) -> [u8; 4] {
         let local_position = self.get_local_position(position);
