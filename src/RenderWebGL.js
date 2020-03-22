@@ -65,21 +65,6 @@ const MASK_TOUCHING_COLOR_TOLERANCE = 2;
 const MAX_EXTRACTED_DRAWABLE_DIMENSION = 2048;
 
 /**
- * Determines if the mask color is "close enough" (only test the 6 top bits for
- * each color).  These bit masks are what scratch 2 used to use, so we do the same.
- * @param {Uint8Array} a A color3b or color4b value.
- * @param {Uint8Array} b A color3b or color4b value.
- * @returns {boolean} If the colors match within the parameters.
- */
-const maskMatches = (a, b) => (
-    // has some non-alpha component to test against
-    a[3] > 0 &&
-    (a[0] & 0b11111100) === (b[0] & 0b11111100) &&
-    (a[1] & 0b11111100) === (b[1] & 0b11111100) &&
-    (a[2] & 0b11111100) === (b[2] & 0b11111100)
-);
-
-/**
  * Determines if the given color is "close enough" (only test the 5 top bits for
  * red and green, 4 bits for blue).  These bit masks are what scratch 2 used to use,
  * so we do the same.
@@ -167,7 +152,8 @@ class RenderWebGL extends EventEmitter {
         }
 
         /** @type {RenderWebGL.UseGpuModes} */
-        this._useGpuMode = RenderWebGL.UseGpuModes.Automatic;
+        // this._useGpuMode = RenderWebGL.UseGpuModes.Automatic;
+        this._useGpuMode = RenderWebGL.UseGpuModes.ForceCPU;
 
         /** @type {Drawable[]} */
         this._allDrawables = [];
@@ -817,46 +803,40 @@ class RenderWebGL extends EventEmitter {
             this._debugCanvas.height = bounds.height;
         }
 
+        const candidateIDs = candidates.map(c => c.id);
+
         // if there are just too many pixels to CPU render efficiently, we need to let readPixels happen
         if (bounds.width * bounds.height * (candidates.length + 1) >= maxPixelsForCPU) {
-            this._isTouchingColorGpuStart(drawableID, candidates.map(({id}) => id).reverse(), bounds, color3b, mask3b);
+            return this._isTouchingColorGpu(
+                drawableID,
+                candidateIDs.reverse(),
+                bounds,
+                color3b,
+                mask3b
+            );
         }
 
         const drawable = this._allDrawables[drawableID];
-        const point = __isTouchingDrawablesPoint;
-        const color = __touchingColor;
         const hasMask = Boolean(mask3b);
 
         drawable.updateCPURenderAttributes();
 
-        // Masked drawable ignores ghost effect
-        const effectMask = ~ShaderManager.EFFECT_INFO.ghost.mask;
-
-        // Scratch Space - +y is top
-        for (let y = bounds.bottom; y <= bounds.top; y++) {
-            if (bounds.width * (y - bounds.bottom) * (candidates.length + 1) >= maxPixelsForCPU) {
-                return this._isTouchingColorGpuFin(bounds, color3b, y - bounds.bottom);
-            }
-            for (let x = bounds.left; x <= bounds.right; x++) {
-                point[1] = y;
-                point[0] = x;
-                // if we use a mask, check our sample color...
-                if (hasMask ?
-                    maskMatches(Drawable.sampleColor4b(point, drawable, color, effectMask), mask3b) :
-                    drawable.isTouching(point)) {
-                    RenderWebGL.sampleColor3b(point, candidates, color);
-                    if (debugCanvasContext) {
-                        debugCanvasContext.fillStyle = `rgb(${color[0]},${color[1]},${color[2]})`;
-                        debugCanvasContext.fillRect(x - bounds.left, bounds.bottom - y, 1, 1);
-                    }
-                    // ...and the target color is drawn at this pixel
-                    if (colorMatches(color, color3b, 0)) {
-                        return true;
-                    }
-                }
-            }
+        if (hasMask) {
+            return this.softwareRenderer.color_is_touching_color(
+                drawableID,
+                candidateIDs,
+                bounds,
+                color3b,
+                mask3b
+            );
         }
-        return false;
+
+        return this.softwareRenderer.is_touching_color(
+            drawableID,
+            candidateIDs,
+            bounds,
+            color3b
+        );
     }
 
     _getMaxPixelsForCPU () {
@@ -884,7 +864,7 @@ class RenderWebGL extends EventEmitter {
         gl.enable(gl.BLEND);
     }
 
-    _isTouchingColorGpuStart (drawableID, candidateIDs, bounds, color3b, mask3b) {
+    _isTouchingColorGpu (drawableID, candidateIDs, bounds, color3b, mask3b) {
         this._doExitDrawRegion();
 
         const gl = this._gl;
@@ -951,18 +931,15 @@ class RenderWebGL extends EventEmitter {
             gl.disable(gl.STENCIL_TEST);
             this._doExitDrawRegion();
         }
-    }
 
-    _isTouchingColorGpuFin (bounds, color3b, stop) {
-        const gl = this._gl;
-        const pixels = new Uint8Array(Math.floor(bounds.width * (bounds.height - stop) * 4));
-        gl.readPixels(0, 0, bounds.width, (bounds.height - stop), gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        const pixels = new Uint8Array(Math.floor(bounds.width * bounds.height * 4));
+        gl.readPixels(0, 0, bounds.width, bounds.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 
         if (this._debugCanvas) {
             this._debugCanvas.width = bounds.width;
             this._debugCanvas.height = bounds.height;
             const context = this._debugCanvas.getContext('2d');
-            const imageData = context.getImageData(0, 0, bounds.width, bounds.height - stop);
+            const imageData = context.getImageData(0, 0, bounds.width, bounds.heigh);
             imageData.data.set(pixels);
             context.putImageData(imageData, 0, 0);
         }
@@ -2055,41 +2032,6 @@ class RenderWebGL extends EventEmitter {
         // Simplify boundary points using hull.js.
         // TODO: Remove this; this algorithm already generates convex hulls.
         return hull(hullPoints, Infinity);
-    }
-
-    /**
-     * Sample a "final" color from an array of drawables at a given scratch space.
-     * Will blend any alpha values with the drawables "below" it.
-     * @param {twgl.v3} vec Scratch Vector Space to sample
-     * @param {Array<Drawables>} drawables A list of drawables with the "top most"
-     *              drawable at index 0
-     * @param {Uint8ClampedArray} dst The color3b space to store the answer in.
-     * @return {Uint8ClampedArray} The dst vector with everything blended down.
-     */
-    static sampleColor3b (vec, drawables, dst) {
-        dst = dst || new Uint8ClampedArray(3);
-        dst.fill(0);
-        let blendAlpha = 1;
-        for (let index = 0; blendAlpha !== 0 && index < drawables.length; index++) {
-            /*
-            if (left > vec[0] || right < vec[0] ||
-                bottom > vec[1] || top < vec[0]) {
-                continue;
-            }
-            */
-            Drawable.sampleColor4b(vec, drawables[index].drawable, __blendColor);
-            // Equivalent to gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-            dst[0] += __blendColor[0] * blendAlpha;
-            dst[1] += __blendColor[1] * blendAlpha;
-            dst[2] += __blendColor[2] * blendAlpha;
-            blendAlpha *= (1 - (__blendColor[3] / 255));
-        }
-        // Backdrop could be transparent, so we need to go to the "clear color" of the
-        // draw scene (white) as a fallback if everything was alpha
-        dst[0] += blendAlpha * 255;
-        dst[1] += blendAlpha * 255;
-        dst[2] += blendAlpha * 255;
-        return dst;
     }
 
     /**

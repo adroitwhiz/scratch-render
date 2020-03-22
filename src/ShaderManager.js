@@ -90,7 +90,8 @@ ShaderManager.EFFECT_INFO = {
     color: {
         uniformName: 'u_color',
         mask: 1 << 0,
-        converter: x => (x / 200) % 1,
+        // ensure modulo (and hence hue shift) is kept positive
+        converter: x => (((x / 200) % 1) + 1) % 1,
         shapeChanges: false
     },
     /** Fisheye effect */

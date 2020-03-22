@@ -1,5 +1,6 @@
 use crate::matrix::*;
 
+use std::f32;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -44,6 +45,11 @@ pub enum EffectBitfield {
     Ghost = 6,
 }
 
+pub const COLOR_EFFECT_MASK: EffectBits =
+    1 << (EffectBitfield::Color as u32) |
+    1 << (EffectBitfield::Brightness as u32) |
+    1 << (EffectBitfield::Ghost as u32);
+
 pub const DISTORTION_EFFECT_MASK: EffectBits =
     1 << (EffectBitfield::Fisheye as u32) |
     1 << (EffectBitfield::Whirl as u32) |
@@ -62,9 +68,138 @@ impl Effects {
     }
 }
 
+fn rgb_to_hsv(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+    let mut r = r;
+    let mut g = g;
+    let mut b = b;
+
+    let mut tmp: f32;
+
+    let mut k = 0f32;
+
+    if g < b {
+        tmp = g;
+        g = b;
+        b = tmp;
+        k = -1f32;
+    }
+
+    if r < g {
+        tmp = g;
+        g = r;
+        r = tmp;
+        k = (-2f32 / 6f32) - k;
+    }
+
+    let chroma = r - f32::min(g, b);
+
+    let h = f32::abs(k + (g - b) / (6f32 * chroma + f32::EPSILON));
+    let s = chroma / (r + f32::EPSILON);
+    let v = r;
+
+    (h, s, v)
+}
+
+fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
+    if s < 1e-18 {
+        return (v, v, v);
+    }
+
+    let i = (h * 6f32).floor();
+    let f = (h * 6f32) - i;
+    let p = v * (1f32 - s);
+    let q = v * (1f32 - (s * f));
+    let t = v * (1f32 - (s * (1f32 - f)));
+
+    match i as u32 {
+        0 => (v, t, p),
+        1 => (q, v, p),
+        2 => (p, v, t),
+        3 => (p, q, v),
+        4 => (t, p, v),
+        5 => (v, p, q),
+        _ => unreachable!()
+    }
+}
+
+pub fn transform_color<'a>(color: [u8; 4], effects: &Effects, effect_bits: EffectBits) -> [u8; 4] {
+    const COLOR_DIVISOR: f32 = 1f32 / 255f32;
+    let mut rgba: [f32; 4] = [
+        (color[0] as f32) * COLOR_DIVISOR,
+        (color[1] as f32) * COLOR_DIVISOR,
+        (color[2] as f32) * COLOR_DIVISOR,
+        (color[3] as f32) * COLOR_DIVISOR
+    ];
+
+    let enable_color = effect_bits & (1 << (EffectBitfield::Color as u32)) != 0;
+    let enable_brightness = effect_bits & (1 << (EffectBitfield::Brightness as u32)) != 0;
+
+    if enable_brightness || enable_color {
+        let alpha = rgba[3] + f32::EPSILON;
+        rgba[0] /= alpha;
+        rgba[1] /= alpha;
+        rgba[2] /= alpha;
+
+        if enable_color {
+            /*vec3 hsv = convertRGB2HSV(gl_FragColor.xyz);
+
+            // this code forces grayscale values to be slightly saturated
+            // so that some slight change of hue will be visible
+            const float minLightness = 0.11 / 2.0;
+            const float minSaturation = 0.09;
+            if (hsv.z < minLightness) hsv = vec3(0.0, 1.0, minLightness);
+            else if (hsv.y < minSaturation) hsv = vec3(0.0, minSaturation, hsv.z);
+
+            hsv.x = mod(hsv.x + u_color, 1.0);
+            if (hsv.x < 0.0) hsv.x += 1.0;
+
+            gl_FragColor.rgb = convertHSV2RGB(hsv);*/
+
+            let (mut h, mut s, mut v) = rgb_to_hsv(rgba[0], rgba[1], rgba[2]);
+
+            const MIN_LIGHTNESS: f32 = 0.11 / 2f32;
+            const MIN_SATURATION: f32 = 0.09;
+
+            if v < MIN_LIGHTNESS {
+                v = MIN_LIGHTNESS
+            } else if s < MIN_SATURATION {
+                s = MIN_SATURATION
+            }
+
+            h = f32::fract(h + effects.color);
+
+            let (r, g, b) = hsv_to_rgb(h, s, v);
+            rgba[0] = r;
+            rgba[1] = g;
+            rgba[2] = b;
+        }
+
+        if enable_brightness {
+            // gl_FragColor.rgb = clamp(gl_FragColor.rgb + vec3(u_brightness), vec3(0), vec3(1));
+            rgba[0] = (rgba[0] + effects.brightness).min(1f32).max(0f32);
+            rgba[1] = (rgba[1] + effects.brightness).min(1f32).max(0f32);
+            rgba[2] = (rgba[2] + effects.brightness).min(1f32).max(0f32);
+        }
+
+        rgba[0] *= alpha;
+        rgba[1] *= alpha;
+        rgba[2] *= alpha;
+    }
+
+    // gl_FragColor *= u_ghost
+    if effect_bits & (1 << (EffectBitfield::Ghost as u32)) != 0 {
+        rgba[0] *= effects.ghost;
+        rgba[1] *= effects.ghost;
+        rgba[2] *= effects.ghost;
+        rgba[3] *= effects.ghost;
+    }
+
+    [(rgba[0] * 255f32) as u8, (rgba[1] * 255f32) as u8, (rgba[2] * 255f32) as u8, (rgba[3] * 255f32) as u8]
+}
+
 const CENTER: Vec2 = Vec2(0.5, 0.5);
 
-pub fn transform_point(point: Vec2, effects: &Effects, effect_bits: &EffectBits, skin_size: Vec2) -> Vec2 {
+pub fn transform_point(point: Vec2, effects: &Effects, effect_bits: EffectBits, skin_size: Vec2) -> Vec2 {
     let mut out = point;
 
     if effect_bits & (1 << (EffectBitfield::Mosaic as u32)) != 0 {

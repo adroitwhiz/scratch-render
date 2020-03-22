@@ -53,7 +53,7 @@ class Skin extends EventEmitter {
          */
         this._silhouette = new Silhouette();
 
-        renderer.softwareRenderer.set_silhouette(id, 0, 0, new Uint8Array(0));
+        renderer.softwareRenderer.set_silhouette(id, 0, 0, new Uint8Array(0), 1, 1, true);
 
         this.setMaxListeners(RenderConstants.SKIN_SHARE_SOFT_LIMIT);
     }
@@ -201,7 +201,7 @@ class Skin extends EventEmitter {
         this.emit(Skin.Events.WasAltered);
     }
 
-    _setSilhouetteFromData (data) {
+    _setSilhouetteFromData (data, premultiplied = false) {
         const size = this.size;
         this._renderer.softwareRenderer.set_silhouette(
             this._id,
@@ -210,7 +210,9 @@ class Skin extends EventEmitter {
             data.data,
 
             size[0],
-            size[1]
+            size[1],
+
+            premultiplied
         );
     }
 

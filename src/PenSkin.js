@@ -336,7 +336,7 @@ class PenSkin extends Skin {
             this._silhouetteImageData.data.set(this._silhouettePixels);
             this._silhouette.update(this._silhouetteImageData, true /* isPremultiplied */);
 
-            this._setSilhouetteFromData(this._silhouetteImageData);
+            this._setSilhouetteFromData(this._silhouetteImageData, true /* isPremultiplied */);
 
             this._silhouetteDirty = false;
         }
