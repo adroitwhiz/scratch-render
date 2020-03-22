@@ -37,52 +37,6 @@ const __cornerWork = [
     new Uint8ClampedArray(4)
 ];
 
-/**
- * Get the color from a given silhouette at an x/y local texture position.
- * Multiply color values by alpha for proper blending.
- * @param {Silhouette} The silhouette to sample.
- * @param {number} x X position of texture (0-1).
- * @param {number} y Y position of texture (0-1).
- * @param {Uint8ClampedArray} dst A color 4b space.
- * @return {Uint8ClampedArray} The dst vector.
- */
-const getColor4b = ({_width: width, _height: height, _colorData: data}, x, y, dst) => {
-    // 0 if outside bounds, otherwise read from data.
-    if (x >= width || y >= height || x < 0 || y < 0) {
-        return dst.fill(0);
-    }
-    const offset = ((y * width) + x) * 4;
-    // premultiply alpha
-    const alpha = data[offset + 3] / 255;
-    dst[0] = data[offset] * alpha;
-    dst[1] = data[offset + 1] * alpha;
-    dst[2] = data[offset + 2] * alpha;
-    dst[3] = data[offset + 3];
-    return dst;
-};
-
-/**
- * Get the color from a given silhouette at an x/y local texture position.
- * Do not multiply color values by alpha, as it has already been done.
- * @param {Silhouette} The silhouette to sample.
- * @param {number} x X position of texture (0-1).
- * @param {number} y Y position of texture (0-1).
- * @param {Uint8ClampedArray} dst A color 4b space.
- * @return {Uint8ClampedArray} The dst vector.
- */
-const getPremultipliedColor4b = ({_width: width, _height: height, _colorData: data}, x, y, dst) => {
-    // 0 if outside bounds, otherwise read from data.
-    if (x >= width || y >= height || x < 0 || y < 0) {
-        return dst.fill(0);
-    }
-    const offset = ((y * width) + x) * 4;
-    dst[0] = data[offset];
-    dst[1] = data[offset + 1];
-    dst[2] = data[offset + 2];
-    dst[3] = data[offset + 3];
-    return dst;
-};
-
 class Silhouette {
     constructor () {
         /**
@@ -102,13 +56,6 @@ class Silhouette {
          * @type {Uint8ClampedArray}
          */
         this._colorData = null;
-
-        // By default, silhouettes are assumed not to contain premultiplied image data,
-        // so when we get a color, we want to multiply it by its alpha channel.
-        // Point `_getColor` to the version of the function that multiplies.
-        this._getColor = getColor4b;
-
-        this.colorAtNearest = this.colorAtLinear = (_, dst) => dst.fill(0);
     }
 
     /**
@@ -117,7 +64,7 @@ class Silhouette {
      * @param {boolean} isPremultiplied True if the source bitmap data comes premultiplied (e.g. from readPixels).
      * rendering can be queried from.
      */
-    update (bitmapData, isPremultiplied = false) {
+    update (bitmapData) {
         let imageData;
         if (bitmapData instanceof ImageData) {
             // If handed ImageData directly, use it directly.
@@ -140,65 +87,7 @@ class Silhouette {
             imageData = ctx.getImageData(0, 0, width, height);
         }
 
-        if (isPremultiplied) {
-            this._getColor = getPremultipliedColor4b;
-        } else {
-            this._getColor = getColor4b;
-        }
-
         this._colorData = imageData.data;
-        // delete our custom overriden "uninitalized" color functions
-        // let the prototype work for itself
-        delete this.colorAtNearest;
-        delete this.colorAtLinear;
-    }
-
-    /**
-     * Sample a color from the silhouette at a given local position using
-     * "nearest neighbor"
-     * @param {twgl.v3} vec [x,y] texture space (0-1)
-     * @param {Uint8ClampedArray} dst The memory buffer to store the value in. (4 bytes)
-     * @returns {Uint8ClampedArray} dst
-     */
-    colorAtNearest (vec, dst) {
-        return this._getColor(
-            this,
-            Math.floor(vec[0] * (this._width - 1)),
-            Math.floor(vec[1] * (this._height - 1)),
-            dst
-        );
-    }
-
-    /**
-     * Sample a color from the silhouette at a given local position using
-     * "linear interpolation"
-     * @param {twgl.v3} vec [x,y] texture space (0-1)
-     * @param {Uint8ClampedArray} dst The memory buffer to store the value in. (4 bytes)
-     * @returns {Uint8ClampedArray} dst
-     */
-    colorAtLinear (vec, dst) {
-        const x = vec[0] * (this._width - 1);
-        const y = vec[1] * (this._height - 1);
-
-        const x1D = x % 1;
-        const y1D = y % 1;
-        const x0D = 1 - x1D;
-        const y0D = 1 - y1D;
-
-        const xFloor = Math.floor(x);
-        const yFloor = Math.floor(y);
-
-        const x0y0 = this._getColor(this, xFloor, yFloor, __cornerWork[0]);
-        const x1y0 = this._getColor(this, xFloor + 1, yFloor, __cornerWork[1]);
-        const x0y1 = this._getColor(this, xFloor, yFloor + 1, __cornerWork[2]);
-        const x1y1 = this._getColor(this, xFloor + 1, yFloor + 1, __cornerWork[3]);
-
-        dst[0] = (x0y0[0] * x0D * y0D) + (x0y1[0] * x0D * y1D) + (x1y0[0] * x1D * y0D) + (x1y1[0] * x1D * y1D);
-        dst[1] = (x0y0[1] * x0D * y0D) + (x0y1[1] * x0D * y1D) + (x1y0[1] * x1D * y0D) + (x1y1[1] * x1D * y1D);
-        dst[2] = (x0y0[2] * x0D * y0D) + (x0y1[2] * x0D * y1D) + (x1y0[2] * x1D * y0D) + (x1y1[2] * x1D * y1D);
-        dst[3] = (x0y0[3] * x0D * y0D) + (x0y1[3] * x0D * y1D) + (x1y0[3] * x1D * y0D) + (x1y1[3] * x1D * y1D);
-
-        return dst;
     }
 
     /**

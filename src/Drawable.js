@@ -664,7 +664,8 @@ class Drawable {
             this._uniforms.u_modelMatrix,
             this.skin.id,
             effects,
-            this.enabledEffects
+            this.enabledEffects,
+            this.useNearest(this.scale)
         );
     }
 
@@ -708,35 +709,6 @@ class Drawable {
         id |= (g & 255) << 8;
         id |= (b & 255) << 16;
         return id + RenderConstants.ID_NONE;
-    }
-
-    /**
-     * Sample a color from a drawable's texture.
-     * The caller is responsible for ensuring this drawable's inverse matrix & its skin's silhouette are up-to-date.
-     * @see updateCPURenderAttributes
-     * @param {twgl.v3} vec The scratch space [x,y] vector
-     * @param {Drawable} drawable The drawable to sample the texture from
-     * @param {Uint8ClampedArray} dst The "color4b" representation of the texture at point.
-     * @returns {Uint8ClampedArray} The dst object filled with the color4b
-     */
-    static sampleColor4b (vec, drawable, dst) {
-        const localPosition = getLocalPosition(drawable, vec);
-        if (localPosition[0] < 0 || localPosition[1] < 0 ||
-            localPosition[0] > 1 || localPosition[1] > 1) {
-            dst[0] = 0;
-            dst[1] = 0;
-            dst[2] = 0;
-            dst[3] = 0;
-            return dst;
-        }
-        const textColor =
-        // commenting out to only use nearest for now
-        // drawable.useNearest() ?
-             drawable.skin._silhouette.colorAtNearest(localPosition, dst);
-        // : drawable.skin._silhouette.colorAtLinear(localPosition, dst);
-
-        if (drawable.enabledEffects === 0) return textColor;
-        return EffectTransform.transformColor(drawable, textColor);
     }
 }
 
