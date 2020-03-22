@@ -1,6 +1,5 @@
 const EventEmitter = require('events');
 
-const hull = require('hull.js');
 const twgl = require('twgl.js');
 
 const BitmapSkin = require('./BitmapSkin');
@@ -11,7 +10,6 @@ const RenderConstants = require('./RenderConstants');
 const ShaderManager = require('./ShaderManager');
 const SVGSkin = require('./SVGSkin');
 const TextBubbleSkin = require('./TextBubbleSkin');
-const EffectTransform = require('./EffectTransform');
 const log = require('./util/log');
 
 let onLoadSwRender = null;
@@ -1864,130 +1862,19 @@ class RenderWebGL extends EventEmitter {
      */
     _getConvexHullPointsForDrawable (drawableID) {
         const drawable = this._allDrawables[drawableID];
-
-        const [width, height] = drawable.skin.size;
-        // No points in the hull if invisible or size is 0.
-        if (!drawable.getVisible() || width === 0 || height === 0) {
-            return [];
-        }
-
         drawable.updateCPURenderAttributes();
+        const pointValues = this.softwareRenderer.drawable_convex_hull_points(drawableID);
 
-        /**
-         * Return the determinant of two vectors, the vector from A to B and the vector from A to C.
-         *
-         * The determinant is useful in this case to know if AC is counter-clockwise from AB.
-         * A positive value means that AC is counter-clockwise from AB. A negative value means AC is clockwise from AB.
-         *
-         * @param {Float32Array} A A 2d vector in space.
-         * @param {Float32Array} B A 2d vector in space.
-         * @param {Float32Array} C A 2d vector in space.
-         * @return {number} Greater than 0 if counter clockwise, less than if clockwise, 0 if all points are on a line.
-         */
-        const determinant = function (A, B, C) {
-            // AB = B - A
-            // AC = C - A
-            // det (AB BC) = AB0 * AC1 - AB1 * AC0
-            return (((B[0] - A[0]) * (C[1] - A[1])) - ((B[1] - A[1]) * (C[0] - A[0])));
-        };
+        const points = [];
 
-        // This algorithm for calculating the convex hull somewhat resembles the monotone chain algorithm.
-        // The main difference is that instead of sorting the points by x-coordinate, and y-coordinate in case of ties,
-        // it goes through them by y-coordinate in the outer loop and x-coordinate in the inner loop.
-        // This gives us "left" and "right" hulls, whereas the monotone chain algorithm gives "top" and "bottom" hulls.
-        // Adapted from https://github.com/LLK/scratch-flash/blob/dcbeeb59d44c3be911545dfe54d46a32404f8e69/src/scratch/ScratchCostume.as#L369-L413
-
-        const leftHull = [];
-        const rightHull = [];
-
-        // While convex hull algorithms usually push and pop values from the list of hull points,
-        // here, we keep indices for the "last" point in each array. Any points past these indices are ignored.
-        // This is functionally equivalent to pushing and popping from a "stack" of hull points.
-        let leftEndPointIndex = -1;
-        let rightEndPointIndex = -1;
-
-        const _pixelPos = twgl.v3.create();
-        const _effectPos = twgl.v3.create();
-
-        let currentPoint;
-
-        // *Not* Scratch Space-- +y is bottom
-        // Loop over all rows of pixels, starting at the top
-        for (let y = 0; y < height; y++) {
-            _pixelPos[1] = y / height;
-
-            // We start at the leftmost point, then go rightwards until we hit an opaque pixel
-            let x = 0;
-            for (; x < width; x++) {
-                _pixelPos[0] = x / width;
-                EffectTransform.transformPoint(drawable, _pixelPos, _effectPos);
-                if (drawable.skin.isTouchingLinear(_effectPos)) {
-                    currentPoint = [x, y];
-                    break;
-                }
-            }
-
-            // If we managed to loop all the way through, there are no opaque pixels on this row. Go to the next one
-            if (x >= width) {
-                continue;
-            }
-
-            // Because leftEndPointIndex is initialized to -1, this is skipped for the first two rows.
-            // It runs only when there are enough points in the left hull to make at least one line.
-            // If appending the current point to the left hull makes a counter-clockwise turn,
-            // we want to append the current point. Otherwise, we decrement the index of the "last" hull point until the
-            // current point makes a counter-clockwise turn.
-            // This decrementing has the same effect as popping from the point list, but is hopefully faster.
-            while (leftEndPointIndex > 0) {
-                if (determinant(leftHull[leftEndPointIndex], leftHull[leftEndPointIndex - 1], currentPoint) > 0) {
-                    break;
-                } else {
-                    // leftHull.pop();
-                    --leftEndPointIndex;
-                }
-            }
-
-            // This has the same effect as pushing to the point list.
-            // This "list head pointer" coding style leaves excess points dangling at the end of the list,
-            // but that doesn't matter; we simply won't copy them over to the final hull.
-
-            // leftHull.push(currentPoint);
-            leftHull[++leftEndPointIndex] = currentPoint;
-
-            // Now we repeat the process for the right side, looking leftwards for a pixel.
-            for (x = width - 1; x >= 0; x--) {
-                _pixelPos[0] = x / width;
-                EffectTransform.transformPoint(drawable, _pixelPos, _effectPos);
-                if (drawable.skin.isTouchingLinear(_effectPos)) {
-                    currentPoint = [x, y];
-                    break;
-                }
-            }
-
-            // Because we're coming at this from the right, it goes clockwise this time.
-            while (rightEndPointIndex > 0) {
-                if (determinant(rightHull[rightEndPointIndex], rightHull[rightEndPointIndex - 1], currentPoint) < 0) {
-                    break;
-                } else {
-                    --rightEndPointIndex;
-                }
-            }
-
-            rightHull[++rightEndPointIndex] = currentPoint;
+        for (let i = 0; i < pointValues.length; i += 2) {
+            const point = new Float32Array(2);
+            point[0] = pointValues[i];
+            point[1] = pointValues[i + 1];
+            points.push(point);
         }
 
-        // Start off "hullPoints" with the left hull points.
-        const hullPoints = leftHull;
-        // This is where we get rid of those dangling extra points.
-        hullPoints.length = leftEndPointIndex + 1;
-        // Add points from the right side in reverse order so all points are ordered clockwise.
-        for (let j = rightEndPointIndex; j >= 0; --j) {
-            hullPoints.push(rightHull[j]);
-        }
-
-        // Simplify boundary points using hull.js.
-        // TODO: Remove this; this algorithm already generates convex hulls.
-        return hull(hullPoints, Infinity);
+        return points;
     }
 
     /**

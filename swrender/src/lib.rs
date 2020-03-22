@@ -1,6 +1,7 @@
 mod utils;
 mod matrix;
 mod effect_transform;
+mod convex_hull;
 pub mod silhouette;
 pub mod drawable;
 
@@ -342,5 +343,21 @@ impl SoftwareRenderer {
         }
 
         hit
+    }
+
+    pub fn drawable_convex_hull_points(&mut self, drawable: drawable::DrawableID) -> Vec<f32> {
+        let drawable = self.drawables.get(&drawable).expect("Drawable should exist");
+        let silhouette = self.silhouettes.get(&drawable.silhouette).unwrap();
+
+        let hull = convex_hull::calculate_drawable_convex_hull(drawable, silhouette);
+
+        let mut points: Vec<f32> = Vec::new();
+
+        for point in hull {
+            points.push(point.0);
+            points.push(point.1);
+        }
+
+        points
     }
 }
