@@ -31,7 +31,7 @@ extern {
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-const ID_NONE: u32 = u32::max_value();
+const ID_NONE: drawable::DrawableID = -1;
 
 #[wasm_bindgen]
 pub struct SoftwareRenderer {
@@ -127,14 +127,12 @@ impl SoftwareRenderer {
         &self,
         func: F,
         rect: JSRectangle,
-        drawable: drawable::DrawableID,
-        candidates: Vec<drawable::DrawableID>
+        drawable: drawable::DrawableID
     ) -> bool
         where F: Fn(
             matrix::Vec2,
             &drawable::Drawable,
-            &silhouette::Silhouette,
-            &Vec<(&drawable::Drawable, &silhouette::Silhouette)>
+            &silhouette::Silhouette
         ) -> bool {
 
         let left = rect.left() as i32;
@@ -144,12 +142,11 @@ impl SoftwareRenderer {
 
         let drawable = self.drawables.get(&drawable).expect("Drawable should exist");
         let silhouette = self.silhouettes.get(&drawable.silhouette).unwrap();
-        let candidates = self.map_candidates(candidates);
 
         for y in bottom..top {
             for x in left..right {
                 let position = matrix::Vec2(x as f32, y as f32);
-                if func(position, drawable, silhouette, &candidates) {
+                if func(position, drawable, silhouette) {
                     return true;
                 }
             }
@@ -164,21 +161,21 @@ impl SoftwareRenderer {
         candidates: Vec<drawable::DrawableID>,
         rect: JSRectangle
     ) -> bool {
+        let candidates = self.map_candidates(candidates);
         self.per_rect_pixel(|
             position,
             drawable,
-            silhouette,
-            candidates
+            silhouette
         | {
             if drawable.is_touching(position, silhouette) {
-                for candidate in candidates {
+                for candidate in &candidates {
                     if candidate.0.is_touching(position, candidate.1) {
                         return true;
                     }
                 }
             }
             false
-        }, rect, drawable, candidates)
+        }, rect, drawable)
     }
 
     #[inline(always)]
@@ -216,12 +213,12 @@ impl SoftwareRenderer {
     ) -> bool {
         let color: [u8; 3] = (*color).try_into().expect("color contains 3 elements");
         let mask: [u8; 3] = (*mask).try_into().expect("mask contains 3 elements");
+        let candidates = self.map_candidates(candidates);
 
         self.per_rect_pixel(|
             position,
             drawable,
-            silhouette,
-            candidates
+            silhouette
         | {
             if Self::mask_matches(drawable.sample_color(position, silhouette), mask) {
                 let sample_color = self.sample_color(position, &candidates);
@@ -230,7 +227,7 @@ impl SoftwareRenderer {
                 }
             }
             false
-        }, rect, drawable, candidates)
+        }, rect, drawable)
     }
 
     pub fn is_touching_color(
@@ -241,11 +238,11 @@ impl SoftwareRenderer {
         color: &[u8]
     ) -> bool {
         let color: [u8; 3] = (*color).try_into().expect("color contains 3 elements");
+        let candidates = self.map_candidates(candidates);
         self.per_rect_pixel(|
             position,
             drawable,
-            silhouette,
-            candidates
+            silhouette
         | {
             if drawable.is_touching(position, silhouette) {
                 let sample_color = self.sample_color(position, &candidates);
@@ -254,7 +251,7 @@ impl SoftwareRenderer {
                 }
             }
             false
-        }, rect, drawable, candidates)
+        }, rect, drawable)
     }
 
     fn sample_color(
@@ -283,5 +280,67 @@ impl SoftwareRenderer {
         dst_color.2 += alpha8;
 
         [dst_color.0 as u8, dst_color.1 as u8, dst_color.2 as u8]
+    }
+
+    pub fn drawable_touching_rect(
+        &mut self,
+        drawable: drawable::DrawableID,
+        rect: JSRectangle
+    ) -> bool {
+        self.per_rect_pixel(|
+            position,
+            drawable,
+            silhouette
+        | {
+            if drawable.is_touching(position, silhouette) {
+                return true;
+            }
+            false
+        }, rect, drawable)
+    }
+
+    pub fn pick(
+        &mut self,
+        candidates: Vec<drawable::DrawableID>,
+        rect: JSRectangle
+    ) -> drawable::DrawableID {
+        let mut hits: HashMap<drawable::DrawableID, u32> = HashMap::new();
+        hits.insert(ID_NONE, 0);
+
+        let candidates = self.map_candidates(candidates);
+
+        // TODO: deduplicate with per_rect_pixel
+        let left = rect.left() as i32;
+        let right = rect.right() as i32 + 1;
+        let bottom = rect.bottom() as i32 - 1;
+        let top = rect.top() as i32;
+
+        for y in bottom..top {
+            for x in left..right {
+                let position = matrix::Vec2(x as f32, y as f32);
+                for candidate in &candidates {
+                    if candidate.0.is_touching(position, candidate.1) {
+                        hits
+                            .entry(candidate.0.id)
+                            .and_modify(|hit| {*hit += 1})
+                            .or_insert(1);
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        let mut hit: drawable::DrawableID = ID_NONE;
+        let mut highest_hits: u32 = 0;
+
+        for (id, num_hits) in hits.iter() {
+            if *num_hits > highest_hits {
+                hit = *id;
+                highest_hits = *num_hits;
+            }
+        }
+
+        hit
     }
 }

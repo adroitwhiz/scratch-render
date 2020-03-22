@@ -1,6 +1,6 @@
 use crate::matrix::Vec2;
 
-pub type SilhouetteID = u32;
+pub type SilhouetteID = i32;
 
 use wasm_bindgen::prelude::*;
 

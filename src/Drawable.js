@@ -4,48 +4,6 @@ const Rectangle = require('./Rectangle');
 const RenderConstants = require('./RenderConstants');
 const ShaderManager = require('./ShaderManager');
 const Skin = require('./Skin');
-const EffectTransform = require('./EffectTransform');
-
-/**
- * An internal workspace for calculating texture locations from world vectors
- * this is REUSED for memory conservation reasons
- * @type {twgl.v3}
- */
-const __isTouchingPosition = twgl.v3.create();
-
-/**
- * Convert a scratch space location into a texture space float.  Uses the
- * internal __isTouchingPosition as a return value, so this should be copied
- * if you ever need to get two local positions and store both.  Requires that
- * the drawable inverseMatrix is up to date.
- *
- * @param {Drawable} drawable The drawable to get the inverse matrix and uniforms from
- * @param {twgl.v3} vec [x,y] scratch space vector
- * @return {twgl.v3} [x,y] texture space float vector - transformed by effects and matrix
- */
-const getLocalPosition = (drawable, vec) => {
-    // Transfrom from world coordinates to Drawable coordinates.
-    const localPosition = __isTouchingPosition;
-    const v0 = vec[0];
-    const v1 = vec[1];
-    const m = drawable._inverseMatrix;
-    // var v2 = v[2];
-    const d = (v0 * m[3]) + (v1 * m[7]) + m[15];
-    // The RenderWebGL quad flips the texture's X axis. So rendered bottom
-    // left is 1, 0 and the top right is 0, 1. Flip the X axis so
-    // localPosition matches that transformation.
-    localPosition[0] = 0.5 - (((v0 * m[0]) + (v1 * m[4]) + m[12]) / d);
-    localPosition[1] = (((v0 * m[1]) + (v1 * m[5]) + m[13]) / d) + 0.5;
-    // Apply texture effect transform if the localPosition is within the drawable's space,
-    // and any effects are currently active.
-    if (drawable.enabledEffects !== 0 &&
-        (localPosition[0] >= 0 && localPosition[0] < 1) &&
-        (localPosition[1] >= 0 && localPosition[1] < 1)) {
-
-        EffectTransform.transformPoint(drawable, localPosition, localPosition);
-    }
-    return localPosition;
-};
 
 class Drawable {
     /**
@@ -459,28 +417,6 @@ class Drawable {
     setConvexHullPoints (points) {
         this._convexHullPoints = points;
         this._convexHullDirty = false;
-    }
-
-    /**
-     * Check if the world position touches the skin.
-     * The caller is responsible for ensuring this drawable's inverse matrix & its skin's silhouette are up-to-date.
-     * @see updateCPURenderAttributes
-     * @param {twgl.v3} vec World coordinate vector.
-     * @return {boolean} True if the world position touches the skin.
-     */
-    isTouching (vec) {
-        if (!this.skin) {
-            return false;
-        }
-
-        const localPosition = getLocalPosition(this, vec);
-
-        // We're not passing in a scale to useNearest, but that's okay because "touching" queries
-        // happen at the "native" size anyway.
-        if (this.useNearest()) {
-            return this.skin.isTouchingNearest(localPosition);
-        }
-        return this.skin.isTouchingLinear(localPosition);
     }
 
     /**

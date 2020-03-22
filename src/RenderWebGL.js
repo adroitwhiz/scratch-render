@@ -29,11 +29,8 @@ swrenderInit(wasm)
         if (onLoadSwRender) onLoadSwRender();
     });
 
-const __isTouchingDrawablesPoint = twgl.v3.create();
 const __candidatesBounds = new Rectangle();
 const __fenceBounds = new Rectangle();
-const __touchingColor = new Uint8ClampedArray(4);
-const __blendColor = new Uint8ClampedArray(4);
 
 // More pixels than this and we give up to the GPU and take the cost of readPixels
 // Width * Height * Number of drawables at location
@@ -961,18 +958,9 @@ class RenderWebGL extends EventEmitter {
             return false;
         }
         const bounds = this.clientSpaceToScratchBounds(centerX, centerY, touchWidth, touchHeight);
-        const worldPos = twgl.v3.create();
-
         drawable.updateCPURenderAttributes();
 
-        for (worldPos[1] = bounds.bottom; worldPos[1] <= bounds.top; worldPos[1]++) {
-            for (worldPos[0] = bounds.left; worldPos[0] <= bounds.right; worldPos[0]++) {
-                if (drawable.isTouching(worldPos)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return this.softwareRenderer.drawable_touching_rect(drawableID, bounds);
     }
 
     /**
@@ -998,7 +986,7 @@ class RenderWebGL extends EventEmitter {
                 return true;
             }
             return false;
-        });
+        }).reverse();
         if (candidateIDs.length === 0) {
             return false;
         }
@@ -1008,38 +996,7 @@ class RenderWebGL extends EventEmitter {
             return false;
         }
 
-        const hits = [];
-        const worldPos = twgl.v3.create(0, 0, 0);
-        // Iterate over the scratch pixels and check if any candidate can be
-        // touched at that point.
-        for (worldPos[1] = bounds.bottom; worldPos[1] <= bounds.top; worldPos[1]++) {
-            for (worldPos[0] = bounds.left; worldPos[0] <= bounds.right; worldPos[0]++) {
-
-                // Check candidates in the reverse order they would have been
-                // drawn. This will determine what candiate's silhouette pixel
-                // would have been drawn at the point.
-                for (let d = candidateIDs.length - 1; d >= 0; d--) {
-                    const id = candidateIDs[d];
-                    const drawable = this._allDrawables[id];
-                    if (drawable.isTouching(worldPos)) {
-                        hits[id] = (hits[id] || 0) + 1;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Bias toward selecting anything over nothing
-        hits[RenderConstants.ID_NONE] = 0;
-
-        let hit = RenderConstants.ID_NONE;
-        for (const hitID in hits) {
-            if (hits.hasOwnProperty(hitID) && (hits[hitID] > hits[hit])) {
-                hit = hitID;
-            }
-        }
-
-        return Number(hit);
+        return this.softwareRenderer.pick(candidateIDs, bounds);
     }
 
     /**
@@ -1255,7 +1212,6 @@ class RenderWebGL extends EventEmitter {
         if (bounds === null) {
             return result;
         }
-        bounds.snapToInt();
         // iterate through the drawables list BACKWARDS - we want the top most item to be the first we check
         for (let index = candidateIDs.length - 1; index >= 0; index--) {
             const id = candidateIDs[index];

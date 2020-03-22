@@ -2,7 +2,7 @@ use crate::silhouette::*;
 use crate::matrix::*;
 use crate::effect_transform::{Effects, EffectBits, transform_point, DISTORTION_EFFECT_MASK, transform_color, COLOR_EFFECT_MASK};
 
-pub type DrawableID = u32;
+pub type DrawableID = i32;
 
 pub struct Drawable {
     pub id: DrawableID,
@@ -16,7 +16,7 @@ pub struct Drawable {
 
 impl Drawable {
     pub fn get_local_position(&self, vec: Vec2) -> Vec2 {
-        let v0 = vec.0 - 0.5;
+        let v0 = vec.0 + 0.5;
         let v1 = vec.1 + 0.5;
         let m = self.inverse_matrix;
         let d = (v0 * m[3]) + (v1 * m[7]) + m[15];
