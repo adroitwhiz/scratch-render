@@ -74,6 +74,7 @@ class Drawable {
         this._convexHullDirty = true;
 
         this._skinWasAltered = this._skinWasAltered.bind(this);
+        this._silhouetteWasUpdated = this._silhouetteWasUpdated.bind(this);
     }
 
     /**
@@ -115,10 +116,12 @@ class Drawable {
         if (this._skin !== newSkin) {
             if (this._skin) {
                 this._skin.removeListener(Skin.Events.WasAltered, this._skinWasAltered);
+                this._skin.removeListener(Skin.Events.SilhouetteUpdated, this._silhouetteWasUpdated);
             }
             this._skin = newSkin;
             if (this._skin) {
                 this._skin.addListener(Skin.Events.WasAltered, this._skinWasAltered);
+                this._skin.addListener(Skin.Events.SilhouetteUpdated, this._silhouetteWasUpdated);
             }
             this._skinWasAltered();
         }
@@ -472,6 +475,14 @@ class Drawable {
         // Search through transformed points to generate box on axes.
         result = result || new Rectangle();
         result.initFromPointsAABB(transformedHullPoints);
+
+        // Expand bounds by half a pixel per side because convex hull points lie in the centers of pixels
+        const silhouetteHalfPixel = (this.scale[0] / 200) * (this.skin.size[0] / this.skin.silhouetteSize[0]);
+        result.left -= silhouetteHalfPixel;
+        result.right += silhouetteHalfPixel;
+        result.bottom -= silhouetteHalfPixel;
+        result.top += silhouetteHalfPixel;
+
         return result;
     }
 
@@ -542,16 +553,13 @@ class Drawable {
      */
     _getTransformedHullPoints () {
         const projection = twgl.m4.ortho(-1, 1, -1, 1, -1, 1);
-        const skinSize = this.skin.size;
-        const halfXPixel = 1 / skinSize[0] / 2;
-        const halfYPixel = 1 / skinSize[1] / 2;
         const tm = twgl.m4.multiply(this._uniforms.u_modelMatrix, projection);
         const transformedHullPoints = [];
         for (let i = 0; i < this._convexHullPoints.length; i++) {
             const point = this._convexHullPoints[i];
             const glPoint = twgl.v3.create(
-                0.5 + (-point[0] / skinSize[0]) - halfXPixel,
-                (point[1] / skinSize[1]) - 0.5 + halfYPixel,
+                0.5 - point[0],
+                point[1] - 0.5,
                 0
             );
             twgl.m4.transformPoint(tm, glPoint, glPoint);
@@ -614,6 +622,14 @@ class Drawable {
         this._skinScaleDirty = true;
         this.setConvexHullDirty();
         this.setTransformDirty();
+    }
+
+    /**
+     * Respond to an internal change in the current Skin's silhouette.
+     * @private
+     */
+    _silhouetteWasUpdated () {
+        this.setConvexHullDirty();
     }
 
     /**

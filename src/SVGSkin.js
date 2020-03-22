@@ -95,7 +95,6 @@ class SVGSkin extends Skin {
 
         // Check if this is the largest MIP created so far. Currently, silhouettes only get scaled up.
         if (this._largestMIPScale < scale) {
-            this._silhouette.update(textureData);
             this._setSilhouetteFromData(textureData);
             this._largestMIPScale = scale;
         }

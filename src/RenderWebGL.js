@@ -1,6 +1,5 @@
 const EventEmitter = require('events');
 
-const hull = require('hull.js');
 const twgl = require('twgl.js');
 
 const BitmapSkin = require('./BitmapSkin');
@@ -11,7 +10,6 @@ const RenderConstants = require('./RenderConstants');
 const ShaderManager = require('./ShaderManager');
 const SVGSkin = require('./SVGSkin');
 const TextBubbleSkin = require('./TextBubbleSkin');
-const EffectTransform = require('./EffectTransform');
 const log = require('./util/log');
 
 let onLoadSwRender = null;
@@ -1701,119 +1699,19 @@ class RenderWebGL extends EventEmitter {
      */
     _getConvexHullPointsForDrawable (drawableID) {
         const drawable = this._allDrawables[drawableID];
-        const [width, height] = drawable.skin.size;
-        // No points in the hull if invisible or size is 0.
-        if (!drawable.getVisible() || width === 0 || height === 0) {
-            return [];
-        }
-
         drawable.updateCPURenderAttributes();
+        const pointValues = this.softwareRenderer.drawable_convex_hull_points(drawableID);
 
-        /**
-         * Return the determinant of two vectors, the vector from A to B and
-         * the vector from A to C.
-         *
-         * The determinant is useful in this case to know if AC is counter
-         * clockwise from AB. A positive value means the AC is counter
-         * clockwise from AC. A negative value menas AC is clockwise from AB.
-         *
-         * @param {Float32Array} A A 2d vector in space.
-         * @param {Float32Array} B A 2d vector in space.
-         * @param {Float32Array} C A 2d vector in space.
-         * @return {number} Greater than 0 if counter clockwise, less than if
-         * clockwise, 0 if all points are on a line.
-         */
-        const CCW = function (A, B, C) {
-            // AB = B - A
-            // AC = C - A
-            // det (AB BC) = AB0 * AC1 - AB1 * AC0
-            return (((B[0] - A[0]) * (C[1] - A[1])) - ((B[1] - A[1]) * (C[0] - A[0])));
-        };
+        const points = [];
 
-        // https://github.com/LLK/scratch-flash/blob/dcbeeb59d44c3be911545dfe54d
-        // 46a32404f8e69/src/scratch/ScratchCostume.as#L369-L413 Following
-        // RasterHull creation, compare and store left and right values that
-        // maintain a convex shape until that data can be passed to `hull` for
-        // further work.
-        const L = [];
-        const R = [];
-        const _pixelPos = twgl.v3.create();
-        const _effectPos = twgl.v3.create();
-        let ll = -1;
-        let rr = -1;
-        let Q;
-        for (let y = 0; y < height; y++) {
-            _pixelPos[1] = y / height;
-            // Scan from left to right, looking for a touchable spot in the
-            // skin.
-            let x = 0;
-            for (; x < width; x++) {
-                _pixelPos[0] = x / width;
-                EffectTransform.transformPoint(drawable, _pixelPos, _effectPos);
-                if (drawable.skin.isTouchingLinear(_effectPos)) {
-                    Q = [x, y];
-                    break;
-                }
-            }
-            // If x is equal to the width there are no touchable points in the
-            // skin. Nothing we can add to L. And looping for R would find the
-            // same thing.
-            if (x >= width) {
-                continue;
-            }
-            // Decrement ll until Q is clockwise (CCW returns negative) from the
-            // last two points in L.
-            while (ll > 0) {
-                if (CCW(L[ll - 1], L[ll], Q) < 0) {
-                    break;
-                } else {
-                    --ll;
-                }
-            }
-            // Increment ll and then set L[ll] to Q. If ll was -1 before this
-            // line, this will set L[0] to Q. If ll was 0 before this line, this
-            // will set L[1] to Q.
-            L[++ll] = Q;
-
-            // Scan from right to left, looking for a touchable spot in the
-            // skin.
-            for (x = width - 1; x >= 0; x--) {
-                _pixelPos[0] = x / width;
-                EffectTransform.transformPoint(drawable, _pixelPos, _effectPos);
-                if (drawable.skin.isTouchingLinear(_effectPos)) {
-                    Q = [x, y];
-                    break;
-                }
-            }
-            // Decrement rr until Q is counter clockwise (CCW returns positive)
-            // from the last two points in L. L takes clockwise points and R
-            // takes counter clockwise points. if y was decremented instead of
-            // incremented R would take clockwise points. We are going in the
-            // right direction for L and the wrong direction for R, so we
-            // compare the opposite value for R from L.
-            while (rr > 0) {
-                if (CCW(R[rr - 1], R[rr], Q) > 0) {
-                    break;
-                } else {
-                    --rr;
-                }
-            }
-            // Increment rr and then set R[rr] to Q.
-            R[++rr] = Q;
+        for (let i = 0; i < pointValues.length; i += 2) {
+            const point = new Float32Array(2);
+            point[0] = pointValues[i];
+            point[1] = pointValues[i + 1];
+            points.push(point);
         }
 
-        // Known boundary points on left/right edges of pixels.
-        const boundaryPoints = L;
-        // Truncate boundaryPoints to the index of the last added Q to L. L may
-        // have more entries than the index for the last Q.
-        boundaryPoints.length = ll + 1;
-        // Add points in R to boundaryPoints in reverse so all points in
-        // boundaryPoints are clockwise from each other.
-        for (let j = rr; j >= 0; --j) {
-            boundaryPoints.push(R[j]);
-        }
-        // Simplify boundary points using convex hull.
-        return hull(boundaryPoints, Infinity);
+        return points;
     }
 
     /**

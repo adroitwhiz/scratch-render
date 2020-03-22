@@ -3,7 +3,6 @@ const EventEmitter = require('events');
 const twgl = require('twgl.js');
 
 const RenderConstants = require('./RenderConstants');
-const Silhouette = require('./Silhouette');
 
 /**
  * Truncate a number into what could be stored in a 32 bit floating point value.
@@ -64,7 +63,8 @@ class Skin extends EventEmitter {
          * A silhouette to store touching data, skins are responsible for keeping it up to date.
          * @private
          */
-        this._silhouette = new Silhouette();
+
+        this.silhouetteSize = [0, 0];
 
         renderer.softwareRenderer.set_silhouette(id, 0, 0, new Uint8Array(0), 1, 1, true);
 
@@ -188,7 +188,6 @@ class Skin extends EventEmitter {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
         gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
 
-        this._silhouette.update(textureData);
         this._setSilhouetteFromData(textureData);
     }
 
@@ -223,7 +222,6 @@ class Skin extends EventEmitter {
         this._rotationCenter[0] = 0;
         this._rotationCenter[1] = 0;
 
-        this._silhouette.update(this._emptyImageData);
         this._setSilhouetteFromData(this._emptyImageData);
         this.emit(Skin.Events.WasAltered);
     }
@@ -241,32 +239,11 @@ class Skin extends EventEmitter {
 
             premultiplied
         );
-    }
 
-    /**
-     * Does this point touch an opaque or translucent point on this skin?
-     * Nearest Neighbor version
-     * The caller is responsible for ensuring this skin's silhouette is up-to-date.
-     * @see updateSilhouette
-     * @see Drawable.updateCPURenderAttributes
-     * @param {twgl.v3} vec A texture coordinate.
-     * @return {boolean} Did it touch?
-     */
-    isTouchingNearest (vec) {
-        return this._silhouette.isTouchingNearest(vec);
-    }
+        this.silhouetteSize[0] = data.width;
+        this.silhouetteSize[1] = data.height;
 
-    /**
-     * Does this point touch an opaque or translucent point on this skin?
-     * Linear Interpolation version
-     * The caller is responsible for ensuring this skin's silhouette is up-to-date.
-     * @see updateSilhouette
-     * @see Drawable.updateCPURenderAttributes
-     * @param {twgl.v3} vec A texture coordinate.
-     * @return {boolean} Did it touch?
-     */
-    isTouchingLinear (vec) {
-        return this._silhouette.isTouchingLinear(vec);
+        this.emit(Skin.Events.SilhouetteUpdated);
     }
 
 }
@@ -280,7 +257,13 @@ Skin.Events = {
      * Emitted when anything about the Skin has been altered, such as the appearance or rotation center.
      * @event Skin.event:WasAltered
      */
-    WasAltered: 'WasAltered'
+    WasAltered: 'WasAltered',
+
+    /**
+     * Emitted whenever this skin's silhouette changes.
+     * @event Skin.event:SilhouetteUpdated
+     */
+    SilhouetteUpdated: 'SilhouetteUpdated'
 };
 
 module.exports = Skin;
