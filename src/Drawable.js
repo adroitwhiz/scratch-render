@@ -591,8 +591,9 @@ class Drawable {
 
     /**
      * Update everything necessary to render this drawable on the CPU.
+     * @param {int} [effectMask] An optional bitmask of effects that will be applied to this drawable on the CPU.
      */
-    updateCPURenderAttributes () {
+    updateCPURenderAttributes (effectMask) {
         this.updateMatrix();
         // CPU rendering always occurs at the "native" size, so no need to scale up this._scale
         if (this.skin) this.skin.updateSilhouette(this._scale);
@@ -603,12 +604,15 @@ class Drawable {
             this._effectsDirty = false;
         }
 
+        let {enabledEffects} = this;
+        if (effectMask) enabledEffects &= effectMask;
+
         this._renderer.softwareRenderer.set_drawable(
             this.id,
             this._uniforms.u_modelMatrix,
             this.skin.id,
             effects,
-            this.enabledEffects,
+            enabledEffects,
             this.useNearest(this.scale)
         );
     }
