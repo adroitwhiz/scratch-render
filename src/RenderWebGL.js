@@ -814,7 +814,8 @@ class RenderWebGL extends EventEmitter {
         const drawable = this._allDrawables[drawableID];
         const hasMask = Boolean(mask3b);
 
-        drawable.updateCPURenderAttributes();
+        // "Color is touching color" should not ghost the drawable whose color is being masked
+        drawable.updateCPURenderAttributes(~ShaderManager.EFFECT_INFO.ghost.mask);
 
         if (hasMask) {
             return this.softwareRenderer.color_is_touching_color(
