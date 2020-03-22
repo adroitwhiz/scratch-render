@@ -16,14 +16,13 @@ extern {
     pub fn log(s: &str);
 }
 
-
 pub struct Silhouette {
     pub id: SilhouetteID,
     pub width: u32,
     pub height: u32,
     pub nominal_size: Vec2,
     data: Box<[u8]>,
-    _blank: [u8; 4]
+    _blank: [u8; 4],
 }
 
 impl Silhouette {
@@ -34,12 +33,23 @@ impl Silhouette {
             height: 0,
             nominal_size: Vec2(0f32, 0f32),
             data: Box::new([0, 0, 0, 0]),
-            _blank: [0, 0, 0, 0]
+            _blank: [0, 0, 0, 0],
         }
     }
 
-    pub fn set_data(&mut self, w: u32, h: u32, mut data: Box<[u8]>, nominal_size: Vec2, premultiplied: bool) {
-        assert_eq!(data.len(), (w * h * 4) as usize, "silhouette data is improperly sized");
+    pub fn set_data(
+        &mut self,
+        w: u32,
+        h: u32,
+        mut data: Box<[u8]>,
+        nominal_size: Vec2,
+        premultiplied: bool,
+    ) {
+        assert_eq!(
+            data.len(),
+            (w * h * 4) as usize,
+            "silhouette data is improperly sized"
+        );
 
         self.width = w;
         self.height = h;
@@ -51,7 +61,9 @@ impl Silhouette {
             for pixel in pixels {
                 // This is indeed one branch per pixel. However, the branch predictor does a pretty good job of
                 // eliminating branch overhead and this saves us several instructions per pixel.
-                if pixel[3] == 0u8 {continue}
+                if pixel[3] == 0u8 {
+                    continue;
+                }
 
                 let alpha = (pixel[3] as f32) / 255f32;
 
@@ -69,7 +81,7 @@ impl Silhouette {
             false
         } else {
             let idx = (((y as u32 * self.width) + x as u32) * 4) as usize;
-            self.data[idx+3] != 0u8
+            self.data[idx + 3] != 0u8
         }
     }
 
@@ -78,25 +90,36 @@ impl Silhouette {
             self._blank
         } else {
             let idx = (((y as u32 * self.width) + x as u32) * 4) as usize;
-            [self.data[idx], self.data[idx + 1], self.data[idx + 2], self.data[idx + 3]]
+            [
+                self.data[idx],
+                self.data[idx + 1],
+                self.data[idx + 2],
+                self.data[idx + 3],
+            ]
         }
     }
 
     pub fn is_touching_nearest(&self, vec: Vec2) -> bool {
-        self.get_point((vec.0 * self.width as f32) as i32, (vec.1 * self.height as f32) as i32)
+        self.get_point(
+            (vec.0 * self.width as f32) as i32,
+            (vec.1 * self.height as f32) as i32,
+        )
     }
 
     pub fn color_at_nearest(&self, vec: Vec2) -> [u8; 4] {
-        self.get_color((vec.0 * self.width as f32) as i32, (vec.1 * self.height as f32) as i32)
+        self.get_color(
+            (vec.0 * self.width as f32) as i32,
+            (vec.1 * self.height as f32) as i32,
+        )
     }
 
     pub fn is_touching_linear(&self, vec: Vec2) -> bool {
         let x = ((vec.0 * self.width as f32) - 0.5) as i32;
         let y = ((vec.1 * self.height as f32) - 0.5) as i32;
 
-        self.get_point(x, y) ||
-        self.get_point(x + 1, y) ||
-        self.get_point(x, y + 1) ||
-        self.get_point(x + 1, y + 1)
+        self.get_point(x, y)
+            || self.get_point(x + 1, y)
+            || self.get_point(x, y + 1)
+            || self.get_point(x + 1, y + 1)
     }
 }

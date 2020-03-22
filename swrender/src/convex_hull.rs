@@ -1,6 +1,6 @@
-use crate::silhouette::Silhouette;
 use crate::drawable::Drawable;
 use crate::matrix::Vec2;
+use crate::silhouette::Silhouette;
 
 use crate::effect_transform::transform_point;
 
@@ -16,19 +16,24 @@ pub fn calculate_drawable_convex_hull(drawable: &Drawable, silhouette: &Silhouet
     let mut left_hull: Vec<Vec2> = Vec::new();
     let mut right_hull: Vec<Vec2> = Vec::new();
 
-    let transform = |p| transform_point(
-        p,
-        &drawable.effects,
-        drawable.effect_bits,
-        silhouette.nominal_size
-    );
+    let transform = |p| {
+        transform_point(
+            p,
+            &drawable.effects,
+            drawable.effect_bits,
+            silhouette.nominal_size,
+        )
+    };
 
     let mut current_point = Vec2(0f32, 0f32);
 
     for y in 0..silhouette.height {
         let mut x: u32 = 0;
         while x < silhouette.width {
-            let local_point = Vec2((x as f32 + 0.5) / silhouette.width as f32, (y as f32 + 0.5) / silhouette.height as f32);
+            let local_point = Vec2(
+                (x as f32 + 0.5) / silhouette.width as f32,
+                (y as f32 + 0.5) / silhouette.height as f32,
+            );
             let point = transform(local_point);
 
             if silhouette.is_touching_nearest(point) {
@@ -57,7 +62,10 @@ pub fn calculate_drawable_convex_hull(drawable: &Drawable, silhouette: &Silhouet
         x = silhouette.width - 1;
 
         while x != 0 {
-            let local_point = Vec2((x as f32 + 0.5) / silhouette.width as f32, (y as f32 + 0.5) / silhouette.height as f32);
+            let local_point = Vec2(
+                (x as f32 + 0.5) / silhouette.width as f32,
+                (y as f32 + 0.5) / silhouette.height as f32,
+            );
             let point = transform(local_point);
 
             if silhouette.is_touching_nearest(point) {

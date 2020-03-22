@@ -45,16 +45,14 @@ pub enum EffectBitfield {
     Ghost = 6,
 }
 
-pub const COLOR_EFFECT_MASK: EffectBits =
-    1 << (EffectBitfield::Color as u32) |
-    1 << (EffectBitfield::Brightness as u32) |
-    1 << (EffectBitfield::Ghost as u32);
+pub const COLOR_EFFECT_MASK: EffectBits = 1 << (EffectBitfield::Color as u32)
+    | 1 << (EffectBitfield::Brightness as u32)
+    | 1 << (EffectBitfield::Ghost as u32);
 
-pub const DISTORTION_EFFECT_MASK: EffectBits =
-    1 << (EffectBitfield::Fisheye as u32) |
-    1 << (EffectBitfield::Whirl as u32) |
-    1 << (EffectBitfield::Pixelate as u32) |
-    1 << (EffectBitfield::Mosaic as u32);
+pub const DISTORTION_EFFECT_MASK: EffectBits = 1 << (EffectBitfield::Fisheye as u32)
+    | 1 << (EffectBitfield::Whirl as u32)
+    | 1 << (EffectBitfield::Pixelate as u32)
+    | 1 << (EffectBitfield::Mosaic as u32);
 
 impl Effects {
     pub fn set_from_js(&mut self, effects: JSEffectMap) {
@@ -118,7 +116,7 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
         3 => (p, q, v),
         4 => (t, p, v),
         5 => (v, p, q),
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 
@@ -128,7 +126,7 @@ pub fn transform_color<'a>(color: [u8; 4], effects: &Effects, effect_bits: Effec
         (color[0] as f32) * COLOR_DIVISOR,
         (color[1] as f32) * COLOR_DIVISOR,
         (color[2] as f32) * COLOR_DIVISOR,
-        (color[3] as f32) * COLOR_DIVISOR
+        (color[3] as f32) * COLOR_DIVISOR,
     ];
 
     let enable_color = effect_bits & (1 << (EffectBitfield::Color as u32)) != 0;
@@ -194,19 +192,29 @@ pub fn transform_color<'a>(color: [u8; 4], effects: &Effects, effect_bits: Effec
         rgba[3] *= effects.ghost;
     }
 
-    [(rgba[0] * 255f32) as u8, (rgba[1] * 255f32) as u8, (rgba[2] * 255f32) as u8, (rgba[3] * 255f32) as u8]
+    [
+        (rgba[0] * 255f32) as u8,
+        (rgba[1] * 255f32) as u8,
+        (rgba[2] * 255f32) as u8,
+        (rgba[3] * 255f32) as u8,
+    ]
 }
 
 const CENTER: Vec2 = Vec2(0.5, 0.5);
 
-pub fn transform_point(point: Vec2, effects: &Effects, effect_bits: EffectBits, skin_size: Vec2) -> Vec2 {
+pub fn transform_point(
+    point: Vec2,
+    effects: &Effects,
+    effect_bits: EffectBits,
+    skin_size: Vec2,
+) -> Vec2 {
     let mut out = point;
 
     if effect_bits & (1 << (EffectBitfield::Mosaic as u32)) != 0 {
         /*texcoord0 = fract(u_mosaic * texcoord0);*/
         out = Vec2(
             f32::fract(effects.mosaic * out.0),
-            f32::fract(effects.mosaic * out.1)
+            f32::fract(effects.mosaic * out.1),
         );
     }
 
@@ -218,7 +226,7 @@ pub fn transform_point(point: Vec2, effects: &Effects, effect_bits: EffectBits, 
 
         out = Vec2(
             (f32::floor(out.0 * pixel_texel_size_x) + CENTER.0) / pixel_texel_size_x,
-            (f32::floor(out.1 * pixel_texel_size_y) + CENTER.1) / pixel_texel_size_y
+            (f32::floor(out.1 * pixel_texel_size_y) + CENTER.1) / pixel_texel_size_y,
         );
     }
 
