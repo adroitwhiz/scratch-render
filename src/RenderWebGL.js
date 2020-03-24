@@ -630,6 +630,7 @@ class RenderWebGL extends EventEmitter {
 
         let drawList = this._drawList;
         if (this._mystery.modeActive) {
+            // draw all layers except for the bottom layer onto the mystery buffer
             drawList = drawList.slice(1);
             twgl.bindFramebufferInfo(gl, this._mystery.bufferInfo);
             gl.clearColor(0, 0, 0, 0);
@@ -638,7 +639,7 @@ class RenderWebGL extends EventEmitter {
         this._drawThese(drawList, ShaderManager.DRAW_MODE.default, this._projection);
 
         if (this._mystery.modeActive) {
-            // draw all layers except for the bottom layer onto the mystery buffer
+            // draw the bottom layer onto the stage
             twgl.bindFramebufferInfo(gl, null);
             gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
             this._drawThese([this._drawList[0]], ShaderManager.DRAW_MODE.default, this._projection);
@@ -1959,6 +1960,7 @@ class RenderWebGL extends EventEmitter {
     }
 
     setMysteryMode (enableMysteryMode) {
+        if (this._mystery.modeActive === enableMysteryMode) return;
         this._mystery.modeActive = enableMysteryMode;
 
         if (enableMysteryMode) {
