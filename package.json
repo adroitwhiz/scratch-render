@@ -13,7 +13,7 @@
   "browser": "./src/index.js",
   "scripts": {
     "build": "npm run build:swrender && webpack --progress --colors",
-    "build:swrender": "cargo build --release --target wasm32-unknown-unknown --manifest-path=\"swrender/Cargo.toml\" && wasm-bindgen --target web swrender/target/wasm32-unknown-unknown/release/swrender.wasm --out-dir swrender/build",
+    "build:swrender": "cargo build --release --target wasm32-unknown-unknown --manifest-path=\"swrender/Cargo.toml\" && wasm-bindgen --target bundler swrender/target/wasm32-unknown-unknown/release/swrender.wasm --out-dir swrender/build",
     "docs": "jsdoc -c .jsdoc.json",
     "lint": "eslint .",
     "prepublish": "npm run build",

@@ -14,15 +14,11 @@ const log = require('./util/log');
 
 let onLoadSwRender = null;
 let swRenderLoaded = false;
-// eslint-disable-next-line no-unused-vars
-const swrender = require('../swrender/build/swrender.js');
+let swrender = null;
 
-const wasm = require('../swrender/build/swrender_bg.wasm');
-const swrenderInit = require('../swrender/build/swrender.js').default;
-
-swrenderInit(wasm)
-    .then(() => {
-        window.swrender = swrender;
+import('../swrender/build/swrender')
+    .then(swrenderImport => {
+        swrender = swrenderImport;
         swRenderLoaded = true;
         if (onLoadSwRender) onLoadSwRender();
     });
@@ -110,13 +106,11 @@ class RenderWebGL extends EventEmitter {
     }
 
     init () {
-        if (swRenderLoaded) return Promise.resolve();
-
-        return new Promise(resolve => {
+        const swRenderPromise = swRenderLoaded ? Promise.resolve() : new Promise(resolve => {
             onLoadSwRender = resolve;
-        }).then(() => {
-            this.swrender = swrender;
+        });
 
+        return swRenderPromise.then(() => {
             this.softwareRenderer = swrender.SoftwareRenderer.new();
         });
     }
