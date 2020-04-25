@@ -7,7 +7,7 @@ uniform vec4 u_penPoints;
 
 // Add this to divisors to prevent division by 0, which results in NaNs propagating through calculations.
 // Smaller values can cause problems on some mobile devices.
-const float epsilon = 1e-3;
+const float epsilon = 1e-2;
 #endif
 
 #ifndef DRAW_MODE_line
@@ -40,7 +40,7 @@ void main() {
 	position -= expandedRadius;
 
 	// Rotate quad to line angle
-	vec2 normalized = (u_penPoints.zw - u_penPoints.xy + epsilon) / (lineLength + epsilon);
+	vec2 normalized = (u_penPoints.zw - u_penPoints.xy + epsilon) / max(lineLength, epsilon);
 	position = mat2(normalized.x, normalized.y, -normalized.y, normalized.x) * position;
 	// Translate quad
 	position += u_penPoints.xy;
