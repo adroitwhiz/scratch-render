@@ -223,7 +223,7 @@ void main()
 	// On (some?) devices with 16-bit float precision, sufficiently long lines will overflow the float's range.
 	// Avoid this by scaling these problematic values down to fit within (-1, 1) then scaling them back up later.
 	// TODO: Is this a problem on all drivers with 16-bit mediump floats, or just Mali?
-	vec2 pointDiff = abs(u_penPoints.zw - u_penPoints.xy);
+	/*vec2 pointDiff = abs(u_penPoints.zw - u_penPoints.xy);
 	float FLOAT_SCALING_INVERSE = max(1.0, max(pointDiff.x, pointDiff.y));
 	float FLOAT_SCALING = 1.0 / FLOAT_SCALING_INVERSE;
 
@@ -249,6 +249,7 @@ void main()
 	// fragments close to the line are 1, and fragments that are within a 1-pixel border of the line are in between.
 	float cappedLine = clamp((u_lineThickness + 1.0) * 0.5 - lineDistance, 0.0, 1.0);
 
-	gl_FragColor = u_lineColor * cappedLine;
+	gl_FragColor = u_lineColor * cappedLine;*/
+	gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 	#endif // DRAW_MODE_line
 }
