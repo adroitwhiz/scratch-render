@@ -859,7 +859,7 @@ class RenderWebGL extends EventEmitter {
             this._debugCanvas.width = bounds.width;
             this._debugCanvas.height = bounds.height;
             const context = this._debugCanvas.getContext('2d');
-            const imageData = context.getImageData(0, 0, bounds.width, bounds.heigh);
+            const imageData = context.getImageData(0, 0, bounds.width, bounds.height);
             imageData.data.set(pixels);
             context.putImageData(imageData, 0, 0);
         }
