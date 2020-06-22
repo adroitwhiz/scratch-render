@@ -76,7 +76,7 @@ class Skin extends EventEmitter {
      */
     dispose () {
         this._id = RenderConstants.ID_NONE;
-        if (this._newSilhouette) this._newSilhouette.free();
+        this._renderer.softwareRenderer.remove_silhouette(this.id);
     }
 
     /**
