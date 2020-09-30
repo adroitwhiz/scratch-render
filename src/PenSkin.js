@@ -319,8 +319,14 @@ class PenSkin extends Skin {
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
+        // Share the underlying buffer between the Uint8Array that silhouette pixels are read into and the
+        // Uint8ClampedArray that the silhouette's ImageData uses, so that when we readPixels into _silhouettePixels,
+        // the silhouette will automatically update.
+        // TODO: currently, it's okay to directly change the values of a Silhouette's pixel array. If this changes such
+        // that silhouette.update actually has to be called every time the silhouette data changes, then
+        // updateSilhouette will need to be changed as well to call silhouette.update.
         this._silhouettePixels = new Uint8Array(Math.floor(width * height * 4));
-        this._silhouetteImageData = new ImageData(width, height);
+        this._silhouetteImageData = new ImageData(new Uint8ClampedArray(this._silhouettePixels.buffer), width, height);
 
         this._silhouetteDirty = true;
     }
@@ -339,9 +345,6 @@ class PenSkin extends Skin {
                 this._size[0], this._size[1],
                 gl.RGBA, gl.UNSIGNED_BYTE, this._silhouettePixels
             );
-
-            this._silhouetteImageData.data.set(this._silhouettePixels);
-            this._silhouette.update(this._silhouetteImageData, true /* isPremultiplied */);
 
             this._silhouetteDirty = false;
         }
