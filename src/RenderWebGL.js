@@ -1880,7 +1880,7 @@ class RenderWebGL extends EventEmitter {
             for (; x < width; x++) {
                 _pixelPos[0] = x / width;
                 EffectTransform.transformPoint(drawable, _pixelPos, _effectPos);
-                if (drawable.skin.isTouchingLinear(_effectPos)) {
+                if (drawable.skin.pointInsideLogicalBounds(_pixelPos) && drawable.skin.isTouchingLinear(_effectPos)) {
                     currentPoint = [x, y];
                     break;
                 }
@@ -1917,7 +1917,7 @@ class RenderWebGL extends EventEmitter {
             for (x = width - 1; x >= 0; x--) {
                 _pixelPos[0] = x / width;
                 EffectTransform.transformPoint(drawable, _pixelPos, _effectPos);
-                if (drawable.skin.isTouchingLinear(_effectPos)) {
+                if (drawable.skin.pointInsideLogicalBounds(_pixelPos) && drawable.skin.isTouchingLinear(_effectPos)) {
                     currentPoint = [x, y];
                     break;
                 }
